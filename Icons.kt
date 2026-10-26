@@ -26,7 +26,7 @@ private fun ImageVector.Builder.addPart(p: Part) {
 private fun vecM(name: String, mirror: Boolean, rot: Float, vararg parts: Part): ImageVector {
     val b = ImageVector.Builder(name, 24.dp, 24.dp, 24f, 24f, autoMirror = mirror)
     if (rot != 0f) {
-        b.group(rotate = rot, pivotX = 12f, pivotY = 12f) { for (p in parts) addPart(p) }
+        b.group(rotate = rot, pivotX = 12f, pivotY = 12f) { for (p in parts) b.addPart(p) }
     } else {
         for (p in parts) b.addPart(p)
     }

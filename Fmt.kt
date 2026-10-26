@@ -62,7 +62,7 @@ object Fmt {
 
     /** عدّاد المكالمة 00:00 */
     fun clock(sec: Long): String {
-        val s = if (sec < 0) 0 else sec
+        val s: Long = if (sec < 0) 0L else sec
         val h = s / 3600
         val m = (s % 3600) / 60
         val ss = s % 60
