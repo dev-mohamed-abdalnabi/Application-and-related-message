@@ -1,0 +1,156 @@
+package com.mohamed.phone.ui
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import com.mohamed.phone.Prefs
+import com.mohamed.phone.data.Repo
+import androidx.compose.foundation.shape.RoundedCornerShape
+import android.os.Build
+
+@Composable
+private fun Toggle(checked: Boolean, onChange: (Boolean) -> Unit) {
+    Switch(
+        checked, onChange,
+        thumbContent = if (checked) ({ Icon(Ic.Check, null, Modifier.size(SwitchDefaults.IconSize)) }) else null
+    )
+}
+
+@Composable
+fun SettingsScreen(bottom: Dp) {
+    val cs = MaterialTheme.colorScheme
+    val ctx = LocalContext.current
+    val roles = rememberRoleState()
+    val requestRole = rememberRoleRequester()
+    val theme by Prefs.theme.collectAsState()
+    val amoled by Prefs.amoled.collectAsState()
+    val accent by Prefs.accent.collectAsState()
+    val haptic by Prefs.haptic.collectAsState()
+    val tones by Prefs.keypadTones.collectAsState()
+    var blockedTick by remember { mutableIntStateOf(0) }
+    val blocked = remember(blockedTick, roles.first) { Repo.blocked() }
+    var addBlock by remember { mutableStateOf(false) }
+    var blockText by remember { mutableStateOf("") }
+
+    Box(Modifier.fillMaxSize().glow(cs.primaryContainer)) {
+        Column(
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).statusBarsPadding()
+                .padding(start = 20.dp, end = 20.dp, top = 24.dp, bottom = bottom)
+        ) {
+            Text("الإعدادات", style = MaterialTheme.typography.displaySmall)
+            Spacer(Modifier.height(20.dp))
+
+            SectionTitle("التطبيقات الافتراضية", first = true)
+            SettingRow(
+                Ic.Phone, "تطبيق الاتصال", if (roles.first) "التطبيق ده هو الافتراضي" else "اضغط عشان تفعّله",
+                onClick = { if (!roles.first) requestRole(true) }
+            ) { Toggle(roles.first) { if (!roles.first) requestRole(true) } }
+            SettingRow(
+                Ic.Message, "تطبيق الرسائل", if (roles.second) "التطبيق ده هو الافتراضي" else "اضغط عشان تفعّله",
+                onClick = { if (!roles.second) requestRole(false) }
+            ) { Toggle(roles.second) { if (!roles.second) requestRole(false) } }
+
+            SectionTitle("المظهر")
+            Switcher(listOf("تلقائي", "فاتح", "داكن"), theme) { Prefs.setTheme(it) }
+            SettingRow(Ic.Moon, "أسود كامل (AMOLED)", "للوضع الداكن، بيوفر بطارية", Modifier.padding(top = 8.dp)) {
+                Toggle(amoled) { Prefs.setAmoled(it) }
+            }
+            Text("اللون المميز", Modifier.padding(top = 12.dp, bottom = 10.dp), style = MaterialTheme.typography.titleSmall)
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (Build.VERSION.SDK_INT >= 31) {
+                    Box(
+                        Modifier.size(44.dp).clip(CircleShape).background(cs.surfaceContainerHigh)
+                            .border(if (accent < 0) 3.dp else 0.dp, cs.primary, CircleShape).clickable { Prefs.setAccent(-1) },
+                        contentAlignment = Alignment.Center
+                    ) { Text("تلقائي", style = MaterialTheme.typography.labelSmall) }
+                }
+                Accents.forEachIndexed { i, a ->
+                    Box(
+                        Modifier.size(44.dp).clip(CircleShape).background(a.lp)
+                            .border(if (accent == i) 3.dp else 0.dp, cs.onSurface, CircleShape).clickable { Prefs.setAccent(i) }
+                    )
+                }
+            }
+
+            SectionTitle("الاتصال")
+            SettingRow(Ic.Keypad, "نغمات الكيباد", "صوت لما تضغط على الأرقام") { Toggle(tones) { Prefs.setTones(it) } }
+            SettingRow(Ic.Phone, "اهتزاز اللمس", "اهتزاز خفيف عند الضغط") { Toggle(haptic) { Prefs.setHaptic(it) } }
+
+            SectionTitle("الأرقام المحظورة")
+            if (!roles.first) {
+                Text("الحظر بيشتغل بس لما يبقى التطبيق هو تطبيق الاتصال الافتراضي.", style = MaterialTheme.typography.bodyMedium, color = cs.onSurfaceVariant)
+            } else {
+                blocked.forEach { (id, n) ->
+                    SettingRow(Ic.Block, n, "محظور") {
+                        IconBtn(Ic.Close, "إلغاء الحظر") { Repo.unblock(id); blockedTick++ }
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                BigButton("حظر رقم", icon = Ic.Add, tonal = true) { addBlock = true }
+            }
+
+            SectionTitle("الصلاحيات")
+            SettingRow(Ic.Settings, "صلاحيات التطبيق", "افتح إعدادات النظام", onClick = { openAppSettings(ctx) })
+
+            Spacer(Modifier.height(28.dp))
+            Text("الهاتف · النسخة 1.0.0", Modifier.fillMaxWidth(), style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant)
+        }
+    }
+
+    if (addBlock) {
+        AlertDialog(
+            onDismissRequest = { addBlock = false },
+            title = { Text("حظر رقم", style = MaterialTheme.typography.titleLarge) },
+            text = {
+                TextField(
+                    blockText, { blockText = it }, singleLine = true, colors = fieldColors(),
+                    shape = RoundedCornerShape(26.dp), placeholder = { Text("الرقم") }
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val n = blockText.trim(); addBlock = false; blockText = ""
+                    if (n.isNotEmpty()) { if (!Repo.block(n)) toast(ctx, "مش قادر أحظر الرقم"); blockedTick++ }
+                }) { Text("حظر", style = MaterialTheme.typography.titleSmall) }
+            },
+            dismissButton = { TextButton(onClick = { addBlock = false }) { Text("إلغاء", style = MaterialTheme.typography.titleSmall) } },
+            shape = RoundedCornerShape(28.dp)
+        )
+    }
+}
