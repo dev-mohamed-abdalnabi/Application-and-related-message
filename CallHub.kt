@@ -16,7 +16,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 @Suppress("DEPRECATION")
 object CallHub {
     class Info(
-        val call: Call, val state: Int, val number: String, val name: String?, val photo: String?,
+        val call: Call?, val state: Int, val number: String, val name: String?, val photo: String?,
         val connectMs: Long, val canHold: Boolean, val canMerge: Boolean, val canSwap: Boolean,
         val isConference: Boolean
     ) {
@@ -133,7 +133,7 @@ object CallHub {
     fun setMuted(m: Boolean) { service?.setMuted(m) }
     fun setRoute(r: Int) { service?.setAudioRoute(r) }
 
-    fun answerRinging() { calls.value.firstOrNull { it.state == Call.STATE_RINGING }?.let { answer(it.call) } }
-    fun rejectRinging() { calls.value.firstOrNull { it.state == Call.STATE_RINGING }?.let { reject(it.call) } }
-    fun hangupAll() { for (i in calls.value) i.call.disconnect() }
+    fun answerRinging() { calls.value.firstOrNull { it.state == Call.STATE_RINGING }?.call?.let { answer(it) } }
+    fun rejectRinging() { calls.value.firstOrNull { it.state == Call.STATE_RINGING }?.call?.let { reject(it) } }
+    fun hangupAll() { for (i in calls.value) i.call?.disconnect() }
 }

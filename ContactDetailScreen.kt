@@ -2,6 +2,7 @@ package com.mohamed.phone.ui
 
 import android.provider.CallLog
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -36,6 +38,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDirection
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.mohamed.phone.data.Fmt
 import com.mohamed.phone.data.Repo
@@ -71,7 +74,7 @@ fun ContactDetailScreen(id: Long) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     BackPill { nav.pop() }
                     Box {
-                        CookieIcon(Ic.More, 44.dp, cs.primary, cs.onPrimary, desc = "المزيد", onClick = { menu = true })
+                        CookieIcon(Ic.More, 40.dp, cs.primary, cs.onPrimary, desc = "المزيد", onClick = { menu = true })
                         DropdownMenu(menu, { menu = false }) {
                             MenuItem("تعديل", Ic.Edit) { menu = false; Intents.editContact(ctx, c) }
                             MenuItem("حظر الرقم", Ic.Block) {
@@ -83,36 +86,55 @@ fun ContactDetailScreen(id: Long) {
                     }
                 }
 
+                Spacer(Modifier.height(4.dp))
+                Avatar(c.name, c.photo, 104.dp)
                 Spacer(Modifier.height(12.dp))
-                Avatar(c.name, c.photo, 128.dp)
+                Text(
+                    c.name, style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center,
+                    maxLines = 2, overflow = TextOverflow.Ellipsis
+                )
                 Spacer(Modifier.height(16.dp))
-                Text(c.name, style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
-                Spacer(Modifier.height(18.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    PillBtn(Ic.Phone, "اتصال", active = true) { c.numbers.firstOrNull()?.let { call(it) } }
-                    PillBtn(Ic.Message, "رسالة") { c.numbers.firstOrNull()?.let { nav.push(Overlay.Conversation(-1L, it)) } }
-                    PillBtn(if (starred) Ic.StarFill else Ic.Star, null, active = starred) {
+
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    ActionTile(Ic.Phone, "اتصال", Modifier.weight(1f), active = true) { c.numbers.firstOrNull()?.let { call(it) } }
+                    ActionTile(Ic.Message, "رسالة", Modifier.weight(1f)) {
+                        c.numbers.firstOrNull()?.let { nav.push(Overlay.Conversation(-1L, it)) }
+                    }
+                    ActionTile(if (starred) Ic.StarFill else Ic.Star, if (starred) "مفضلة" else "تفضيل", Modifier.weight(1f), active = starred) {
                         starOverride = !starred
                         Repo.setStarred(c, !starred)
                     }
                 }
 
-                Column(Modifier.fillMaxWidth()) {
-                    SectionTitle("الأرقام")
+                Text(
+                    "الأرقام", Modifier.fillMaxWidth().padding(top = 20.dp, bottom = 8.dp, start = 4.dp),
+                    style = MaterialTheme.typography.titleSmall, color = cs.primary
+                )
+                Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp)).background(cs.surfaceContainer)) {
                     c.numbers.forEach { n ->
-                        Box(
-                            Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
+                        Row(
+                            Modifier.fillMaxWidth()
                                 .combinedClickable(onClick = { call(n) }, onLongClick = { Intents.copy(ctx, n) })
+                                .padding(start = 18.dp, end = 10.dp, top = 10.dp, bottom = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            SettingRow(Ic.Phone, n, "اضغط للاتصال · اضغط مطوّلًا للنسخ", trailing = {
-                                IconBtn(Ic.Message, "رسالة") { nav.push(Overlay.Conversation(-1L, n)) }
-                                IconBtn(Ic.Copy, "نسخ") { Intents.copy(ctx, n) }
-                            })
+                            Column(Modifier.weight(1f), horizontalAlignment = Alignment.Start) {
+                                Text(n, style = MaterialTheme.typography.titleMedium.copy(textDirection = TextDirection.Ltr))
+                                Text("اضغط للاتصال", style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant)
+                            }
+                            IconBtn(Ic.Message, "رسالة") { nav.push(Overlay.Conversation(-1L, n)) }
+                            Spacer(Modifier.width(6.dp))
+                            IconBtn(Ic.Copy, "نسخ") { Intents.copy(ctx, n) }
                         }
                     }
+                }
 
-                    if (recent.isNotEmpty()) {
-                        SectionTitle("آخر المكالمات")
+                if (recent.isNotEmpty()) {
+                    Text(
+                        "آخر المكالمات", Modifier.fillMaxWidth().padding(top = 20.dp, bottom = 8.dp, start = 4.dp),
+                        style = MaterialTheme.typography.titleSmall, color = cs.primary
+                    )
+                    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp)).background(cs.surfaceContainer).padding(vertical = 6.dp)) {
                         recent.forEach { e ->
                             val bad = e.type == CallLog.Calls.MISSED_TYPE || e.type == CallLog.Calls.REJECTED_TYPE
                             val label = when (e.type) {
@@ -123,24 +145,26 @@ fun ContactDetailScreen(id: Long) {
                                 else -> "مكالمة"
                             }
                             Row(
-                                Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)
+                                Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 9.dp),
+                                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
                                 Icon(
                                     if (e.type == CallLog.Calls.OUTGOING_TYPE) Ic.ArrowOut else Ic.ArrowIn, null,
-                                    Modifier.size(20.dp), tint = if (bad) cs.error else cs.onSurfaceVariant
+                                    Modifier.size(18.dp), tint = if (bad) cs.error else cs.onSurfaceVariant
                                 )
                                 Text(label, Modifier.weight(1f), style = MaterialTheme.typography.titleSmall, color = if (bad) cs.error else cs.onSurface)
-                                Text(Fmt.full(e.date), style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant)
+                                Text(Fmt.day(e.date), style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant)
                             }
                         }
                     }
-                    Spacer(Modifier.height(24.dp))
-                    BigButton("تعديل جهة الاتصال", icon = Ic.Edit, tonal = true) { Intents.editContact(ctx, c) }
-                    Spacer(Modifier.height(12.dp))
-                    BigButton("حذف جهة الاتصال", icon = Ic.Trash, danger = true) { confirmDelete = true }
-                    Spacer(Modifier.height(24.dp))
                 }
+
+                Spacer(Modifier.height(20.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    BigButton("تعديل", Modifier.weight(1f), icon = Ic.Edit, tonal = true, height = 52.dp) { Intents.editContact(ctx, c) }
+                    BigButton("حذف", Modifier.weight(1f), icon = Ic.Trash, danger = true, height = 52.dp) { confirmDelete = true }
+                }
+                Spacer(Modifier.height(16.dp))
             }
         }
     }

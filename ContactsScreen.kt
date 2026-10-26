@@ -67,7 +67,7 @@ fun ContactsScreen(bottom: Dp) {
             item {
                 TabHeader("جهات الاتصال", "الهاتف · ${all.size} جهة") {
                     Box {
-                        CookieIcon(Ic.Menu, 44.dp, cs.primary, cs.onPrimary, desc = "القايمة", onClick = { menu = true })
+                        CookieIcon(Ic.Menu, 40.dp, cs.primary, cs.onPrimary, desc = "القايمة", onClick = { menu = true })
                         DropdownMenu(menu, { menu = false }) {
                             MenuItem("جهة اتصال جديدة", Ic.Add) { menu = false; Intents.addContact(ctx) }
                             MenuItem("تحديث", Ic.Clock) { menu = false; Repo.reloadAll() }
@@ -75,17 +75,8 @@ fun ContactsScreen(bottom: Dp) {
                     }
                 }
             }
-            item {
-                TextField(
-                    value = q, onValueChange = { q = it }, singleLine = true,
-                    modifier = Modifier.padding(top = 16.dp).fillMaxWidth().heightIn(min = 52.dp),
-                    shape = RoundedCornerShape(26.dp), colors = fieldColors(),
-                    placeholder = { Text("ابحث في جهات الاتصال", maxLines = 1) },
-                    leadingIcon = { Icon(Ic.Search, null) },
-                    trailingIcon = { if (q.isNotEmpty()) IconBtn(Ic.Close, "مسح") { q = "" } }
-                )
-            }
-            item { Switcher(listOf("الكل", "المفضلة"), sub, Modifier.padding(vertical = 12.dp)) { sub = it } }
+            item { SearchBar(q, { q = it }, "ابحث في جهات الاتصال", Modifier.padding(top = 10.dp, bottom = 2.dp)) }
+            item { Switcher(listOf("الكل", "المفضلة"), sub, Modifier.padding(vertical = 8.dp)) { sub = it } }
 
             if (list.isEmpty()) item {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -112,7 +103,7 @@ fun ContactRow(c: ContactItem, onClick: () -> Unit) {
         Modifier.fillMaxWidth().padding(vertical = 2.dp).clip(RoundedCornerShape(22.dp)).clickable(onClick = onClick).padding(6.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Avatar(c.name, c.photo, 52.dp)
+        Avatar(c.name, c.photo, 48.dp)
         Column(Modifier.weight(1f)) {
             Text(c.name, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(

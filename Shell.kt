@@ -56,6 +56,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.mohamed.phone.InCallScreen
 import com.mohamed.phone.data.Repo
 import com.mohamed.phone.telecom.Dialing
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -253,10 +254,12 @@ fun Shell() {
 
 @Composable
 private fun OverlayHost(o: Overlay) {
+    val nav = LocalNavigator.current
     when (o) {
         is Overlay.Dialer -> DialerScreen(o.number)
         is Overlay.ContactDetail -> ContactDetailScreen(o.id)
         is Overlay.Conversation -> ConversationScreen(o.threadId, o.address, o.draft)
         is Overlay.NewMessage -> NewMessageScreen()
+        is Overlay.CallPreview -> InCallScreen(onFinish = { nav.pop() }, onAddCall = { }, preview = true, previewRinging = o.ringing)
     }
 }

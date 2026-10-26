@@ -71,7 +71,7 @@ fun MessagesScreen(bottom: Dp) {
             item {
                 TabHeader("الرسائل", "الهاتف · ${all.size} محادثة" + if (unread > 0) " · $unread جديدة" else "") {
                     Box {
-                        CookieIcon(Ic.Menu, 44.dp, cs.tertiary, cs.onTertiary, desc = "القايمة", onClick = { menu = true })
+                        CookieIcon(Ic.Menu, 40.dp, cs.tertiary, cs.onTertiary, desc = "القايمة", onClick = { menu = true })
                         DropdownMenu(menu, { menu = false }) {
                             MenuItem("رسالة جديدة", Ic.Add) { menu = false; nav.push(Overlay.NewMessage) }
                             MenuItem("تحديث", Ic.Clock) { menu = false; Repo.reloadAll() }
@@ -79,16 +79,7 @@ fun MessagesScreen(bottom: Dp) {
                     }
                 }
             }
-            item {
-                TextField(
-                    value = q, onValueChange = { q = it }, singleLine = true,
-                    modifier = Modifier.padding(top = 16.dp, bottom = 12.dp).fillMaxWidth().heightIn(min = 52.dp),
-                    shape = RoundedCornerShape(26.dp), colors = fieldColors(),
-                    placeholder = { Text("ابحث في الرسائل", maxLines = 1) },
-                    leadingIcon = { Icon(Ic.Search, null) },
-                    trailingIcon = { if (q.isNotEmpty()) IconBtn(Ic.Close, "مسح") { q = "" } }
-                )
-            }
+            item { SearchBar(q, { q = it }, "ابحث في الرسائل", Modifier.padding(top = 10.dp, bottom = 8.dp)) }
             if (!roles.second) item {
                 Box(Modifier.padding(bottom = 12.dp)) {
                     RoleBanner(Ic.Message, "خليه تطبيق الرسائل الافتراضي", "عشان تستقبل الرسائل وتحفظ اللي بتبعتها وتقدر تمسح المحادثات") {
@@ -111,7 +102,7 @@ fun MessagesScreen(bottom: Dp) {
                         .clickable { nav.push(Overlay.Conversation(t.threadId, t.address)) }.padding(6.dp),
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    Avatar(name, contact?.photo, 52.dp, seed = t.address)
+                    Avatar(name, contact?.photo, 48.dp, seed = t.address)
                     Column(Modifier.weight(1f)) {
                         Text(
                             name, maxLines = 1, overflow = TextOverflow.Ellipsis,

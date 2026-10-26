@@ -24,6 +24,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -228,7 +230,7 @@ fun FloatingNav(items: List<NavTab>, sel: Int, on: (Int) -> Unit) {
 @Composable
 fun Switcher(opts: List<String>, sel: Int, modifier: Modifier = Modifier, on: (Int) -> Unit) {
     val cs = MaterialTheme.colorScheme
-    BoxWithConstraints(modifier.fillMaxWidth().height(54.dp).clip(CircleShape).background(cs.surfaceContainerHigh).padding(4.dp)) {
+    BoxWithConstraints(modifier.fillMaxWidth().height(44.dp).clip(CircleShape).background(cs.surfaceContainerHigh).padding(4.dp)) {
         val w = maxWidth / opts.size
         val x by animateDpAsState(w * sel.coerceAtLeast(0), spring(0.8f, 420f), label = "sw")
         if (sel >= 0) Box(Modifier.offset(x = x).width(w).fillMaxHeight().clip(CircleShape).background(cs.primary))
@@ -249,7 +251,7 @@ fun Switcher(opts: List<String>, sel: Int, modifier: Modifier = Modifier, on: (I
 @Composable
 fun BigButton(
     text: String, modifier: Modifier = Modifier, icon: ImageVector? = null, tonal: Boolean = false,
-    danger: Boolean = false, onClick: () -> Unit
+    danger: Boolean = false, height: Dp = 64.dp, onClick: () -> Unit
 ) {
     val cs = MaterialTheme.colorScheme
     val src = remember { MutableInteractionSource() }
@@ -259,7 +261,7 @@ fun BigButton(
     val bg = when { danger -> cs.error; tonal -> cs.secondaryContainer; else -> cs.primary }
     val fg = when { danger -> cs.onError; tonal -> cs.onSecondaryContainer; else -> cs.onPrimary }
     Row(
-        modifier.fillMaxWidth().height(64.dp).graphicsLayer { scaleX = s; scaleY = s }
+        modifier.fillMaxWidth().height(height).graphicsLayer { scaleX = s; scaleY = s }
             .clip(RoundedCornerShape(r)).background(bg)
             .clickable(interactionSource = src, indication = null, onClick = onClick),
         horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically
@@ -334,12 +336,12 @@ fun fieldColors(): TextFieldColors {
 @Composable
 fun TabHeader(title: String, subtitle: String, badge: @Composable () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().statusBarsPadding().padding(top = 8.dp),
+        Modifier.fillMaxWidth().statusBarsPadding().padding(top = 4.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Column {
-            Text(title, style = MaterialTheme.typography.headlineMedium)
-            Text(subtitle, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.headlineSmall)
+            Text(subtitle, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         badge()
     }
@@ -421,3 +423,46 @@ fun ConfirmDialog(
 }
 
 fun toast(ctx: Context, msg: String) = Toast.makeText(ctx, msg, Toast.LENGTH_SHORT).show()
+
+
+@Composable
+fun SearchBar(value: String, onChange: (String) -> Unit, hint: String, modifier: Modifier = Modifier) {
+    val cs = MaterialTheme.colorScheme
+    Row(
+        modifier.fillMaxWidth().height(46.dp).clip(CircleShape).background(cs.surfaceContainerHigh).padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Icon(Ic.Search, null, Modifier.size(20.dp), tint = cs.onSurfaceVariant)
+        Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+            if (value.isEmpty()) Text(hint, style = MaterialTheme.typography.bodyMedium, color = cs.onSurfaceVariant, maxLines = 1)
+            BasicTextField(
+                value = value, onValueChange = onChange, singleLine = true,
+                textStyle = MaterialTheme.typography.bodyMedium.copy(color = cs.onSurface),
+                cursorBrush = SolidColor(cs.primary), modifier = Modifier.fillMaxWidth()
+            )
+        }
+        if (value.isNotEmpty()) IconBtn(Ic.Close, "مسح") { onChange("") }
+    }
+}
+
+@Composable
+fun ActionTile(
+    icon: ImageVector, label: String, modifier: Modifier = Modifier, active: Boolean = false,
+    danger: Boolean = false, tileHeight: Dp = 80.dp, onClick: () -> Unit
+) {
+    val cs = MaterialTheme.colorScheme
+    val src = remember { MutableInteractionSource() }
+    val pressed by src.collectIsPressedAsState()
+    val r by animateDpAsState(if (pressed) 16.dp else 26.dp, spring(0.55f, 600f), label = "tr")
+    val bg = when { danger -> cs.errorContainer; active -> cs.primary; else -> cs.surfaceContainerHigh }
+    val fg = when { danger -> cs.onErrorContainer; active -> cs.onPrimary; else -> cs.onSurface }
+    Column(
+        modifier.height(tileHeight).clip(RoundedCornerShape(r)).background(bg)
+            .clickable(interactionSource = src, indication = null, onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center
+    ) {
+        Icon(icon, null, Modifier.size(24.dp), tint = fg)
+        Spacer(Modifier.height(6.dp))
+        Text(label, color = fg, style = MaterialTheme.typography.labelMedium, maxLines = 1)
+    }
+}

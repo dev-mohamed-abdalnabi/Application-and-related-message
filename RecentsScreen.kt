@@ -94,7 +94,7 @@ fun RecentsScreen(bottom: Dp) {
             item {
                 TabHeader("الأخيرة", "الهاتف · ${all.size} مكالمة") {
                     Box {
-                        CookieIcon(Ic.Menu, 44.dp, cs.primary, cs.onPrimary, desc = "القايمة", onClick = { menu = true })
+                        CookieIcon(Ic.Menu, 40.dp, cs.primary, cs.onPrimary, desc = "القايمة", onClick = { menu = true })
                         DropdownMenu(menu, { menu = false }) {
                             MenuItem("تحديث", Ic.Clock) { menu = false; Repo.reloadAll() }
                             MenuItem("مسح السجل", Ic.Trash, danger = true) { menu = false; confirmClear = true }
@@ -102,17 +102,8 @@ fun RecentsScreen(bottom: Dp) {
                     }
                 }
             }
-            item {
-                TextField(
-                    value = q, onValueChange = { q = it }, singleLine = true,
-                    modifier = Modifier.padding(top = 16.dp).fillMaxWidth().heightIn(min = 52.dp),
-                    shape = RoundedCornerShape(26.dp), colors = fieldColors(),
-                    placeholder = { Text("ابحث بالاسم أو الرقم", maxLines = 1) },
-                    leadingIcon = { Icon(Ic.Search, null) },
-                    trailingIcon = { if (q.isNotEmpty()) IconBtn(Ic.Close, "مسح") { q = "" } }
-                )
-            }
-            item { Switcher(listOf("الكل", "الفائتة"), sub, Modifier.padding(vertical = 12.dp)) { sub = it } }
+            item { SearchBar(q, { q = it }, "ابحث بالاسم أو الرقم", Modifier.padding(top = 10.dp, bottom = 2.dp)) }
+            item { Switcher(listOf("الكل", "الفائتة"), sub, Modifier.padding(vertical = 8.dp)) { sub = it } }
             if (!roles.first) item {
                 Box(Modifier.padding(bottom = 12.dp)) {
                     RoleBanner(Ic.Phone, "خليه تطبيق الاتصال الافتراضي", "عشان المكالمات تظهر بشاشة التطبيق ده وتقدر تحظر الأرقام") {
@@ -141,7 +132,7 @@ fun RecentsScreen(bottom: Dp) {
                         .padding(6.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                        Avatar(name, contact?.photo, 52.dp, seed = e.number)
+                        Avatar(name, contact?.photo, 48.dp, seed = e.number)
                         Column(Modifier.weight(1f)) {
                             Text(
                                 name + if (e.count > 1) " (${e.count})" else "", maxLines = 1, overflow = TextOverflow.Ellipsis,

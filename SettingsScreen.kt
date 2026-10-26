@@ -42,7 +42,10 @@ import androidx.compose.ui.unit.dp
 import com.mohamed.phone.Prefs
 import com.mohamed.phone.data.Repo
 import androidx.compose.foundation.shape.RoundedCornerShape
+import android.content.Intent
+import android.net.Uri
 import android.os.Build
+import android.provider.Settings
 
 @Composable
 private fun Toggle(checked: Boolean, onChange: (Boolean) -> Unit) {
@@ -56,6 +59,7 @@ private fun Toggle(checked: Boolean, onChange: (Boolean) -> Unit) {
 fun SettingsScreen(bottom: Dp) {
     val cs = MaterialTheme.colorScheme
     val ctx = LocalContext.current
+    val nav = LocalNavigator.current
     val roles = rememberRoleState()
     val requestRole = rememberRoleRequester()
     val theme by Prefs.theme.collectAsState()
@@ -112,6 +116,20 @@ fun SettingsScreen(bottom: Dp) {
             SettingRow(Ic.Keypad, "نغمات الكيباد", "صوت لما تضغط على الأرقام") { Toggle(tones) { Prefs.setTones(it) } }
             SettingRow(Ic.Phone, "اهتزاز اللمس", "اهتزاز خفيف عند الضغط") { Toggle(haptic) { Prefs.setHaptic(it) } }
 
+            SectionTitle("شاشة المكالمة")
+            SettingRow(
+                Ic.Phone, "معاينة المكالمة الواردة", "شوف شكل الشاشة لما حد يرن عليك",
+                onClick = { nav.push(Overlay.CallPreview(true)) }
+            )
+            SettingRow(
+                Ic.Phone, "معاينة المكالمة الجارية", "شكل الشاشة أثناء المكالمة",
+                onClick = { nav.push(Overlay.CallPreview(false)) }
+            )
+            SettingRow(
+                Ic.Info, "إذن الشاشة الكاملة", "لو شاشة الاتصال الوارد مش بتظهر والموبايل مقفول",
+                onClick = { openFullScreenSettings(ctx) }
+            )
+
             SectionTitle("الأرقام المحظورة")
             if (!roles.first) {
                 Text("الحظر بيشتغل بس لما يبقى التطبيق هو تطبيق الاتصال الافتراضي.", style = MaterialTheme.typography.bodyMedium, color = cs.onSurfaceVariant)
@@ -153,4 +171,16 @@ fun SettingsScreen(bottom: Dp) {
             shape = RoundedCornerShape(28.dp)
         )
     }
+}
+
+
+private fun openFullScreenSettings(ctx: android.content.Context) {
+    try {
+        if (Build.VERSION.SDK_INT >= 34) {
+            ctx.startActivity(
+                Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, Uri.fromParts("package", ctx.packageName, null))
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            )
+        } else openAppSettings(ctx)
+    } catch (e: Exception) { openAppSettings(ctx) }
 }

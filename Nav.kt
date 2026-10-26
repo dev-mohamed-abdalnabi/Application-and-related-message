@@ -10,6 +10,7 @@ sealed interface Overlay {
     data class ContactDetail(val id: Long) : Overlay
     data class Conversation(val threadId: Long, val address: String, val draft: String = "") : Overlay
     data object NewMessage : Overlay
+    data class CallPreview(val ringing: Boolean) : Overlay
 }
 
 object Nav {
