@@ -1,5 +1,8 @@
 package com.mohamed.phone.ui
 
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -48,10 +51,10 @@ import android.os.Build
 import android.provider.Settings
 
 @Composable
-private fun Toggle(checked: Boolean, onChange: (Boolean) -> Unit) {
-    Switch(
-        checked, onChange,
-        thumbContent = if (checked) ({ Icon(Ic.Check, null, Modifier.size(SwitchDefaults.IconSize)) }) else null
+private fun Chevron() {
+    Icon(
+        Ic.Back, null, Modifier.size(18.dp).graphicsLayer { rotationZ = 180f },
+        tint = MaterialTheme.colorScheme.onSurfaceVariant
     )
 }
 
@@ -72,82 +75,126 @@ fun SettingsScreen(bottom: Dp) {
     var addBlock by remember { mutableStateOf(false) }
     var blockText by remember { mutableStateOf("") }
 
-    Box(Modifier.fillMaxSize().glow(cs.primaryContainer)) {
+    Box(Modifier.fillMaxSize()) {
         Column(
             Modifier.fillMaxSize().verticalScroll(rememberScrollState()).statusBarsPadding()
-                .padding(start = 20.dp, end = 20.dp, top = 24.dp, bottom = bottom)
+                .padding(start = 16.dp, end = 16.dp, top = 52.dp, bottom = bottom)
         ) {
-            Text("الإعدادات", style = MaterialTheme.typography.displaySmall)
-            Spacer(Modifier.height(20.dp))
+            Text("الإعدادات", Modifier.padding(start = 4.dp, bottom = 18.dp), style = MaterialTheme.typography.displaySmall)
 
             SectionTitle("التطبيقات الافتراضية", first = true)
-            SettingRow(
-                Ic.Phone, "تطبيق الاتصال", if (roles.first) "التطبيق ده هو الافتراضي" else "اضغط عشان تفعّله",
-                onClick = { if (!roles.first) requestRole(true) }
-            ) { Toggle(roles.first) { if (!roles.first) requestRole(true) } }
-            SettingRow(
-                Ic.Message, "تطبيق الرسائل", if (roles.second) "التطبيق ده هو الافتراضي" else "اضغط عشان تفعّله",
-                onClick = { if (!roles.second) requestRole(false) }
-            ) { Toggle(roles.second) { if (!roles.second) requestRole(false) } }
+            GroupCard {
+                SettingRow(
+                    Ic.Phone, "تطبيق الاتصال", if (roles.first) "التطبيق ده هو الافتراضي" else "اضغط عشان تفعّله",
+                    iconBg = IosColors.Green, onClick = { if (!roles.first) requestRole(true) }
+                ) { IosSwitch(roles.first) { if (!roles.first) requestRole(true) } }
+                RowDivider(60.dp)
+                SettingRow(
+                    Ic.Message, "تطبيق الرسائل", if (roles.second) "التطبيق ده هو الافتراضي" else "اضغط عشان تفعّله",
+                    iconBg = IosColors.Green, onClick = { if (!roles.second) requestRole(false) }
+                ) { IosSwitch(roles.second) { if (!roles.second) requestRole(false) } }
+            }
 
             SectionTitle("المظهر")
             Switcher(listOf("تلقائي", "فاتح", "داكن"), theme) { Prefs.setTheme(it) }
-            SettingRow(Ic.Moon, "أسود كامل (AMOLED)", "للوضع الداكن، بيوفر بطارية", Modifier.padding(top = 8.dp)) {
-                Toggle(amoled) { Prefs.setAmoled(it) }
-            }
-            Text("اللون المميز", Modifier.padding(top = 12.dp, bottom = 10.dp), style = MaterialTheme.typography.titleSmall)
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                if (Build.VERSION.SDK_INT >= 31) {
-                    Box(
-                        Modifier.size(44.dp).clip(CircleShape).background(cs.surfaceContainerHigh)
-                            .border(if (accent < 0) 3.dp else 0.dp, cs.primary, CircleShape).clickable { Prefs.setAccent(-1) },
-                        contentAlignment = Alignment.Center
-                    ) { Text("تلقائي", style = MaterialTheme.typography.labelSmall) }
-                }
-                Accents.forEachIndexed { i, a ->
-                    Box(
-                        Modifier.size(44.dp).clip(CircleShape).background(a.lp)
-                            .border(if (accent == i) 3.dp else 0.dp, cs.onSurface, CircleShape).clickable { Prefs.setAccent(i) }
-                    )
+            Spacer(Modifier.height(12.dp))
+            GroupCard {
+                SettingRow(
+                    Ic.Moon, "أسود كامل (AMOLED)", "للوضع الداكن، بيوفر بطارية",
+                    iconBg = IosColors.Purple, onClick = { Prefs.setAmoled(!amoled) }
+                ) { IosSwitch(amoled) { Prefs.setAmoled(it) } }
+                RowDivider(60.dp)
+                Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp)) {
+                    Text("اللون المميز", style = MaterialTheme.typography.bodyLarge)
+                    Spacer(Modifier.height(12.dp))
+                    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (Build.VERSION.SDK_INT >= 31) {
+                            Box(
+                                Modifier.size(38.dp).clip(CircleShape).background(cs.surfaceContainerHigh)
+                                    .border(if (accent < 0) 2.5.dp else 0.dp, cs.onSurface, CircleShape).clickable { Prefs.setAccent(-1) },
+                                contentAlignment = Alignment.Center
+                            ) { Text("تلقائي", style = MaterialTheme.typography.labelSmall) }
+                        }
+                        Accents.forEachIndexed { i, a ->
+                            Box(
+                                Modifier.size(38.dp).clip(CircleShape).background(a.lp)
+                                    .border(if (accent == i) 2.5.dp else 0.dp, cs.onSurface, CircleShape).clickable { Prefs.setAccent(i) }
+                            )
+                        }
+                    }
                 }
             }
 
             SectionTitle("الاتصال")
-            SettingRow(Ic.Keypad, "نغمات الكيباد", "صوت لما تضغط على الأرقام") { Toggle(tones) { Prefs.setTones(it) } }
-            SettingRow(Ic.Phone, "اهتزاز اللمس", "اهتزاز خفيف عند الضغط") { Toggle(haptic) { Prefs.setHaptic(it) } }
+            GroupCard {
+                SettingRow(
+                    Ic.Keypad, "نغمات الكيباد", "صوت لما تضغط على الأرقام",
+                    iconBg = IosColors.Blue, onClick = { Prefs.setTones(!tones) }
+                ) { IosSwitch(tones) { Prefs.setTones(it) } }
+                RowDivider(60.dp)
+                SettingRow(
+                    Ic.Phone, "اهتزاز اللمس", "اهتزاز خفيف عند الضغط",
+                    iconBg = IosColors.Orange, onClick = { Prefs.setHaptic(!haptic) }
+                ) { IosSwitch(haptic) { Prefs.setHaptic(it) } }
+            }
 
             SectionTitle("شاشة المكالمة")
-            SettingRow(
-                Ic.Phone, "معاينة المكالمة الواردة", "شوف شكل الشاشة لما حد يرن عليك",
-                onClick = { nav.push(Overlay.CallPreview(true)) }
-            )
-            SettingRow(
-                Ic.Phone, "معاينة المكالمة الجارية", "شكل الشاشة أثناء المكالمة",
-                onClick = { nav.push(Overlay.CallPreview(false)) }
-            )
-            SettingRow(
-                Ic.Info, "إذن الشاشة الكاملة", "لو شاشة الاتصال الوارد مش بتظهر والموبايل مقفول",
-                onClick = { openFullScreenSettings(ctx) }
-            )
+            GroupCard {
+                SettingRow(
+                    Ic.Phone, "معاينة المكالمة الواردة", "شوف شكل الشاشة لما حد يرن عليك",
+                    iconBg = IosColors.Green, onClick = { nav.push(Overlay.CallPreview(true)) }
+                ) { Chevron() }
+                RowDivider(60.dp)
+                SettingRow(
+                    Ic.Phone, "معاينة المكالمة الجارية", "شكل الشاشة أثناء المكالمة",
+                    iconBg = IosColors.Green, onClick = { nav.push(Overlay.CallPreview(false)) }
+                ) { Chevron() }
+                RowDivider(60.dp)
+                SettingRow(
+                    Ic.Info, "إذن الشاشة الكاملة", "لو شاشة الاتصال الوارد مش بتظهر والموبايل مقفول",
+                    iconBg = IosColors.Gray, onClick = { openFullScreenSettings(ctx) }
+                ) { Chevron() }
+            }
 
             SectionTitle("الأرقام المحظورة")
             if (!roles.first) {
-                Text("الحظر بيشتغل بس لما يبقى التطبيق هو تطبيق الاتصال الافتراضي.", style = MaterialTheme.typography.bodyMedium, color = cs.onSurfaceVariant)
+                GroupCard {
+                    Text(
+                        "الحظر بيشتغل بس لما يبقى التطبيق هو تطبيق الاتصال الافتراضي.",
+                        Modifier.padding(16.dp), style = MaterialTheme.typography.bodyMedium, color = cs.onSurfaceVariant
+                    )
+                }
             } else {
-                blocked.forEach { (id, n) ->
-                    SettingRow(Ic.Block, n, "محظور") {
-                        IconBtn(Ic.Close, "إلغاء الحظر") { Repo.unblock(id); blockedTick++ }
+                GroupCard {
+                    blocked.forEach { (id, n) ->
+                        SettingRow(Ic.Block, n, "محظور", iconBg = IosColors.Red) {
+                            IconBtn(Ic.Close, "إلغاء الحظر") { Repo.unblock(id); blockedTick++ }
+                        }
+                        RowDivider(60.dp)
+                    }
+                    Row(
+                        Modifier.fillMaxWidth().clickable { addBlock = true }.padding(horizontal = 16.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Icon(Ic.Add, null, Modifier.size(20.dp), tint = cs.primary)
+                        Text("حظر رقم", style = MaterialTheme.typography.bodyLarge, color = cs.primary)
                     }
                 }
-                Spacer(Modifier.height(8.dp))
-                BigButton("حظر رقم", icon = Ic.Add, tonal = true) { addBlock = true }
             }
 
             SectionTitle("الصلاحيات")
-            SettingRow(Ic.Settings, "صلاحيات التطبيق", "افتح إعدادات النظام", onClick = { openAppSettings(ctx) })
+            GroupCard {
+                SettingRow(
+                    Ic.Settings, "صلاحيات التطبيق", "افتح إعدادات النظام",
+                    iconBg = IosColors.Gray, onClick = { openAppSettings(ctx) }
+                ) { Chevron() }
+            }
 
             Spacer(Modifier.height(28.dp))
-            Text("الهاتف · النسخة 1.0.0", Modifier.fillMaxWidth(), style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant)
+            Text(
+                "الهاتف · النسخة 1.0.0", Modifier.fillMaxWidth(), textAlign = TextAlign.Center,
+                style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant
+            )
         }
     }
 
@@ -158,17 +205,17 @@ fun SettingsScreen(bottom: Dp) {
             text = {
                 TextField(
                     blockText, { blockText = it }, singleLine = true, colors = fieldColors(),
-                    shape = RoundedCornerShape(26.dp), placeholder = { Text("الرقم") }
+                    shape = RoundedCornerShape(12.dp), placeholder = { Text("الرقم") }
                 )
             },
             confirmButton = {
                 TextButton(onClick = {
                     val n = blockText.trim(); addBlock = false; blockText = ""
                     if (n.isNotEmpty()) { if (!Repo.block(n)) toast(ctx, "مش قادر أحظر الرقم"); blockedTick++ }
-                }) { Text("حظر", style = MaterialTheme.typography.titleSmall) }
+                }) { Text("حظر", style = MaterialTheme.typography.titleMedium) }
             },
-            dismissButton = { TextButton(onClick = { addBlock = false }) { Text("إلغاء", style = MaterialTheme.typography.titleSmall) } },
-            shape = RoundedCornerShape(28.dp)
+            dismissButton = { TextButton(onClick = { addBlock = false }) { Text("إلغاء", style = MaterialTheme.typography.bodyLarge) } },
+            shape = RoundedCornerShape(14.dp)
         )
     }
 }

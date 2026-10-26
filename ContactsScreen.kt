@@ -1,5 +1,6 @@
 package com.mohamed.phone.ui
 
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -59,15 +60,15 @@ fun ContactsScreen(bottom: Dp) {
     }
     val grouped = remember(list) { list.groupBy { Fmt.section(it.name) } }
 
-    Box(Modifier.fillMaxSize().glow(cs.primaryContainer)) {
+    Box(Modifier.fillMaxSize()) {
         LazyColumn(
             Modifier.fillMaxSize().imePadding(),
-            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = bottom)
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = bottom)
         ) {
             item {
                 TabHeader("جهات الاتصال", "الهاتف · ${all.size} جهة") {
                     Box {
-                        CookieIcon(Ic.Menu, 40.dp, cs.primary, cs.onPrimary, desc = "القايمة", onClick = { menu = true })
+                        HeaderBtn(Ic.More, "القايمة") { menu = true }
                         DropdownMenu(menu, { menu = false }) {
                             MenuItem("جهة اتصال جديدة", Ic.Add) { menu = false; Intents.addContact(ctx) }
                             MenuItem("تحديث", Ic.Clock) { menu = false; Repo.reloadAll() }
@@ -89,7 +90,7 @@ fun ContactsScreen(bottom: Dp) {
             }
 
             grouped.forEach { (letter, people) ->
-                item(key = "h_$letter") { SectionTitle(letter, first = false) }
+                item(key = "h_$letter") { IndexHeader(letter) }
                 items(people, key = { it.id }) { c -> ContactRow(c) { nav.push(Overlay.ContactDetail(c.id)) } }
             }
         }
@@ -99,19 +100,25 @@ fun ContactsScreen(bottom: Dp) {
 @Composable
 fun ContactRow(c: ContactItem, onClick: () -> Unit) {
     val cs = MaterialTheme.colorScheme
-    Row(
-        Modifier.fillMaxWidth().padding(vertical = 2.dp).clip(RoundedCornerShape(22.dp)).clickable(onClick = onClick).padding(6.dp),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)
-    ) {
-        Avatar(c.name, c.photo, 48.dp)
-        Column(Modifier.weight(1f)) {
-            Text(c.name, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(
-                c.numbers.firstOrNull() ?: "",
-                style = MaterialTheme.typography.bodySmall.copy(textDirection = TextDirection.Ltr),
-                color = cs.onSurfaceVariant, maxLines = 1
-            )
+    Column(Modifier.fillMaxWidth()) {
+        Row(
+            Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 4.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Avatar(c.name, c.photo, 42.dp)
+            Column(Modifier.weight(1f)) {
+                Text(
+                    c.name, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium, textDirection = TextDirection.Content),
+                    maxLines = 1, overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    c.numbers.firstOrNull() ?: "",
+                    style = MaterialTheme.typography.bodySmall.copy(textDirection = TextDirection.Ltr),
+                    color = cs.onSurfaceVariant, maxLines = 1
+                )
+            }
+            if (c.starred) Icon(Ic.StarFill, null, Modifier.size(18.dp), tint = cs.primary)
         }
-        if (c.starred) Icon(Ic.StarFill, null, Modifier.size(20.dp), tint = cs.primary)
+        RowDivider(start = 58.dp)
     }
 }

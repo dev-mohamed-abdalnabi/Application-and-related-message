@@ -49,6 +49,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -88,15 +89,15 @@ fun PermissionScreen(onResult: () -> Unit, onSkip: () -> Unit) {
         asked = true
         onResult()
     }
-    Box(Modifier.fillMaxSize().glow(cs.primaryContainer)) {
+    Box(Modifier.fillMaxSize()) {
         Column(
             Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp, vertical = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center
         ) {
-            CookieIcon(Ic.Phone, 148.dp, cs.primaryContainer, cs.onPrimaryContainer)
+            CookieIcon(Ic.Phone, 112.dp, cs.primaryContainer, cs.onPrimaryContainer)
             Spacer(Modifier.height(28.dp))
-            Text("محتاجين صلاحياتك", style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
+            Text("محتاجين صلاحياتك", style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
             Spacer(Modifier.height(10.dp))
             Text(
                 "عشان نعرض جهات الاتصال وسجل المكالمات والرسائل، ونقدر نتصل ونبعت رسايل، لازم تسمح بالصلاحيات.",
@@ -110,7 +111,7 @@ fun PermissionScreen(onResult: () -> Unit, onSkip: () -> Unit) {
             }
             Spacer(Modifier.height(8.dp))
             TextButton(onClick = onSkip) {
-                Text("مش دلوقتي", style = MaterialTheme.typography.titleSmall, color = cs.onSurfaceVariant)
+                Text("مش دلوقتي", style = MaterialTheme.typography.bodyLarge, color = cs.primary)
             }
         }
     }
@@ -120,7 +121,7 @@ fun PermissionScreen(onResult: () -> Unit, onSkip: () -> Unit) {
 private fun ExtendedFab(icon: ImageVector, text: String, onClick: () -> Unit) {
     val cs = MaterialTheme.colorScheme
     Row(
-        Modifier.height(56.dp).clip(CircleShape).background(cs.primary).clickable(onClick = onClick).padding(horizontal = 22.dp),
+        Modifier.height(52.dp).clip(CircleShape).background(cs.primary).clickable(onClick = onClick).padding(horizontal = 20.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Icon(icon, null, Modifier.size(24.dp), tint = cs.onPrimary)
@@ -139,7 +140,7 @@ fun Shell() {
     val threads by Repo.threads.collectAsState()
     val unread = threads.sumOf { it.unread }
     val navInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-    val bottom = if (imeOpen) 16.dp else navInset + 120.dp
+    val bottom = if (imeOpen) 16.dp else navInset + 144.dp
 
     val pending by Nav.pending.collectAsState()
     LaunchedEffect(pending) {
@@ -186,13 +187,8 @@ fun Shell() {
                 !imeOpen, Modifier.align(Alignment.BottomCenter),
                 enter = slideInVertically { it } + fadeIn(), exit = slideOutVertically { it } + fadeOut()
             ) {
-                Column(
-                    Modifier.fillMaxWidth()
-                        .background(Brush.verticalGradient(listOf(Color.Transparent, cs.surface)))
-                        .navigationBarsPadding().padding(top = 28.dp, bottom = 14.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    FloatingNav(
+                Column(Modifier.fillMaxWidth().background(cs.surface).navigationBarsPadding()) {
+                    TabBar(
                         listOf(
                             NavTab("الأخيرة", Ic.Clock),
                             NavTab("الجهات", Ic.Person),
@@ -208,10 +204,12 @@ fun Shell() {
                 !imeOpen && stack.isEmpty() && tab <= 2, Modifier.align(Alignment.BottomStart),
                 enter = slideInVertically { it } + fadeIn(), exit = slideOutVertically { it } + fadeOut()
             ) {
-                Box(Modifier.navigationBarsPadding().padding(start = 20.dp, bottom = 96.dp)) {
-                    if (tab == 2) ExtendedFab(Ic.Add, "رسالة جديدة") { stack.add(Overlay.NewMessage) }
-                    else RoundAction(Ic.Keypad, 64.dp, cs.primary, cs.onPrimary, desc = "لوحة الأرقام") {
-                        stack.add(Overlay.Dialer(""))
+                Box(Modifier.navigationBarsPadding().padding(start = 20.dp, bottom = 52.dp + 18.dp)) {
+                    if (tab == 2) Box(Modifier.shadow(6.dp, CircleShape)) { ExtendedFab(Ic.Add, "رسالة جديدة") { stack.add(Overlay.NewMessage) } }
+                    else Box(Modifier.shadow(6.dp, CircleShape)) {
+                        RoundAction(Ic.Keypad, 58.dp, cs.primary, cs.onPrimary, desc = "لوحة الأرقام") {
+                            stack.add(Overlay.Dialer(""))
+                        }
                     }
                 }
             }
@@ -245,8 +243,8 @@ fun Shell() {
                     }
                 },
                 confirmButton = {},
-                dismissButton = { TextButton(onClick = { simFor = null }) { Text("إلغاء", style = MaterialTheme.typography.titleSmall) } },
-                shape = RoundedCornerShape(28.dp)
+                dismissButton = { TextButton(onClick = { simFor = null }) { Text("إلغاء", style = MaterialTheme.typography.bodyLarge) } },
+                shape = RoundedCornerShape(14.dp)
             )
         }
     }

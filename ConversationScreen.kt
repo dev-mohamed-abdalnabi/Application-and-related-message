@@ -1,5 +1,7 @@
 package com.mohamed.phone.ui
 
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Spacer
 import android.provider.Telephony
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -85,20 +87,23 @@ fun ConversationScreen(threadId: Long, address: String, draft: String) {
     Surface(Modifier.fillMaxSize(), color = cs.surface) {
         Column(Modifier.fillMaxSize().statusBarsPadding().imePadding().navigationBarsPadding()) {
             Row(
-                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)
+                Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 BackPill { nav.pop() }
-                Avatar(name, contact?.photo, 44.dp, seed = address)
-                Column(Modifier.weight(1f)) {
-                    Text(name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    if (name != address) Text(
-                        address, style = MaterialTheme.typography.bodySmall.copy(textDirection = TextDirection.Ltr),
-                        color = cs.onSurfaceVariant, maxLines = 1
+                Spacer(Modifier.weight(1f))
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Avatar(name, contact?.photo, 36.dp, seed = address)
+                    Text(
+                        name, style = MaterialTheme.typography.labelMedium.copy(textDirection = TextDirection.Content),
+                        maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 160.dp)
                     )
                 }
-                if (address.any { it.isDigit() }) PillBtn(Ic.Phone, null, active = true) { call(address) }
+                Spacer(Modifier.weight(1f))
+                if (address.any { it.isDigit() }) IconBtn(Ic.Phone, "اتصال", tint = cs.primary) { call(address) } else Spacer(Modifier.size(36.dp))
+                Spacer(Modifier.size(4.dp))
             }
+            RowDivider()
 
             if (!roles.second) Box(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
                 RoleBanner(Ic.Message, "خليه تطبيق الرسائل الافتراضي", "عشان الرسايل اللي بتبعتها تتحفظ في المحادثة") { requestRole(false) }
@@ -125,12 +130,12 @@ fun ConversationScreen(threadId: Long, address: String, draft: String) {
                                         Text(
                                             m.body,
                                             Modifier.widthIn(max = 280.dp)
-                                                .clip(RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp, bottomStart = if (mine) 22.dp else 6.dp, bottomEnd = if (mine) 6.dp else 22.dp))
+                                                .clip(RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp, bottomStart = if (mine) 18.dp else 4.dp, bottomEnd = if (mine) 4.dp else 18.dp))
                                                 .background(if (failed) cs.errorContainer else if (mine) cs.primary else cs.surfaceContainerHigh)
                                                 .combinedClickable(onClick = {}, onLongClick = { menuFor = m.id })
-                                                .padding(horizontal = 14.dp, vertical = 10.dp),
+                                                .padding(horizontal = 14.dp, vertical = 8.dp),
                                             color = if (failed) cs.onErrorContainer else if (mine) cs.onPrimary else cs.onSurface,
-                                            style = MaterialTheme.typography.bodyMedium
+                                            style = MaterialTheme.typography.bodyLarge
                                         )
                                         DropdownMenu(menuFor == m.id, { menuFor = null }) {
                                             MenuItem("نسخ", Ic.Copy) { menuFor = null; Intents.copy(ctx, m.body) }
@@ -159,14 +164,15 @@ fun ConversationScreen(threadId: Long, address: String, draft: String) {
             ) {
                 TextField(
                     value = text, onValueChange = { text = it }, maxLines = 5,
-                    modifier = Modifier.weight(1f).heightIn(min = 52.dp),
-                    shape = RoundedCornerShape(26.dp), colors = fieldColors(),
+                    modifier = Modifier.weight(1f).heightIn(min = 44.dp),
+                    shape = RoundedCornerShape(22.dp), colors = fieldColors(),
                     placeholder = { Text("اكتب رسالة") }
                 )
                 RoundAction(
-                    Ic.Send, 52.dp,
+                    Ic.Send, 40.dp,
                     if (text.isBlank()) cs.surfaceContainerHigh else cs.primary,
-                    if (text.isBlank()) cs.onSurfaceVariant else cs.onPrimary, desc = "إرسال", iconSize = 22.dp
+                    if (text.isBlank()) cs.onSurfaceVariant else cs.onPrimary, desc = "إرسال", iconSize = 20.dp,
+                    modifier = Modifier.padding(bottom = 2.dp)
                 ) {
                     if (text.isNotBlank()) {
                         if (SmsSender.send(ctx, address, text)) text = "" else toast(ctx, "مش قادر أبعت الرسالة")
@@ -195,21 +201,21 @@ fun NewMessageScreen() {
         Column(Modifier.fillMaxSize().statusBarsPadding().imePadding().navigationBarsPadding().padding(horizontal = 16.dp)) {
             Row(Modifier.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 BackPill { nav.pop() }
-                Text("رسالة جديدة", style = MaterialTheme.typography.titleLarge)
+                Text("رسالة جديدة", style = MaterialTheme.typography.titleMedium)
             }
             TextField(
                 value = q, onValueChange = { q = it }, singleLine = true,
                 modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
-                shape = RoundedCornerShape(26.dp), colors = fieldColors(),
+                shape = RoundedCornerShape(12.dp), colors = fieldColors(),
                 placeholder = { Text("اكتب اسم أو رقم") }
             )
             LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(vertical = 12.dp)) {
                 if (digits.length >= 3) item {
                     Row(
-                        Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).clickable { open(digits) }.padding(6.dp),
+                        Modifier.fillMaxWidth().clickable { open(digits) }.padding(horizontal = 4.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
-                        Avatar("", null, 52.dp, seed = digits)
+                        Avatar("", null, 42.dp, seed = digits)
                         Text("إرسال إلى $digits", style = MaterialTheme.typography.titleSmall)
                     }
                 }

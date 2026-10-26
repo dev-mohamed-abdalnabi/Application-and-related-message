@@ -1,5 +1,7 @@
 package com.mohamed.phone.ui
 
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDirection
 import android.provider.CallLog
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
@@ -86,15 +88,15 @@ fun RecentsScreen(bottom: Dp) {
         all.filter { (sub == 0 || it.type == CallLog.Calls.MISSED_TYPE) && matches(it, q) }
     }
 
-    Box(Modifier.fillMaxSize().glow(cs.primaryContainer)) {
+    Box(Modifier.fillMaxSize()) {
         LazyColumn(
             Modifier.fillMaxSize().imePadding(),
-            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = bottom)
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = bottom)
         ) {
             item {
                 TabHeader("الأخيرة", "الهاتف · ${all.size} مكالمة") {
                     Box {
-                        CookieIcon(Ic.Menu, 40.dp, cs.primary, cs.onPrimary, desc = "القايمة", onClick = { menu = true })
+                        HeaderBtn(Ic.More, "القايمة") { menu = true }
                         DropdownMenu(menu, { menu = false }) {
                             MenuItem("تحديث", Ic.Clock) { menu = false; Repo.reloadAll() }
                             MenuItem("مسح السجل", Ic.Trash, danger = true) { menu = false; confirmClear = true }
@@ -125,29 +127,32 @@ fun RecentsScreen(bottom: Dp) {
                 val sec = if (e.type == CallLog.Calls.INCOMING_TYPE || e.type == CallLog.Calls.OUTGOING_TYPE) {
                     info.label + " · " + Fmt.duration(e.duration)
                 } else info.label
-                Column(
-                    Modifier.fillMaxWidth().padding(vertical = 2.dp).clip(RoundedCornerShape(22.dp))
-                        .background(if (open) cs.surfaceContainerHigh else Color.Transparent)
-                        .clickable { expanded = if (open) null else e.ids.first() }
-                        .padding(6.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                        Avatar(name, contact?.photo, 48.dp, seed = e.number)
+                Column(Modifier.fillMaxWidth()) {
+                    Row(
+                        Modifier.fillMaxWidth().clickable { expanded = if (open) null else e.ids.first() }
+                            .padding(horizontal = 4.dp, vertical = 9.dp),
+                        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
                         Column(Modifier.weight(1f)) {
                             Text(
                                 name + if (e.count > 1) " (${e.count})" else "", maxLines = 1, overflow = TextOverflow.Ellipsis,
-                                style = MaterialTheme.typography.titleSmall, color = if (info.bad) cs.error else cs.onSurface
+                                style = MaterialTheme.typography.bodyLarge.copy(
+                                    fontWeight = if (info.bad) FontWeight.Bold else FontWeight.Medium,
+                                    textDirection = TextDirection.Content
+                                ),
+                                color = if (info.bad) cs.error else cs.onSurface
                             )
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Icon(info.icon, null, Modifier.size(16.dp), tint = if (info.bad) cs.error else cs.onSurfaceVariant)
-                                Text(sec, style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Icon(info.icon, null, Modifier.size(14.dp), tint = if (info.bad) cs.error else cs.onSurfaceVariant)
+                                Text(sec, style = MaterialTheme.typography.bodyMedium, color = cs.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
                         }
-                        Text(Fmt.day(e.date), style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant)
+                        Text(Fmt.day(e.date), style = MaterialTheme.typography.bodyMedium, color = cs.onSurfaceVariant)
+                        Icon(Ic.Info, "تفاصيل", Modifier.size(22.dp), tint = cs.primary)
                     }
                     AnimatedVisibility(open) {
                         Row(
-                            Modifier.padding(top = 10.dp, bottom = 4.dp).horizontalScroll(rememberScrollState()),
+                            Modifier.padding(start = 4.dp, top = 2.dp, bottom = 10.dp).horizontalScroll(rememberScrollState()),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             if (e.number.isNotEmpty()) {
@@ -164,6 +169,7 @@ fun RecentsScreen(bottom: Dp) {
                             }
                         }
                     }
+                    RowDivider(start = 4.dp)
                 }
             }
         }

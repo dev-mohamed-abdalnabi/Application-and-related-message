@@ -3,7 +3,10 @@ package com.mohamed.phone.ui
 import android.media.AudioManager
 import android.media.ToneGenerator
 import android.provider.CallLog
-import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -60,15 +63,14 @@ private fun DialKey(main: String, sub: String?, onClick: () -> Unit, onLong: (()
     val cs = MaterialTheme.colorScheme
     val src = remember { MutableInteractionSource() }
     val pressed by src.collectIsPressedAsState()
-    val r by animateDpAsState(if (pressed) 22.dp else 38.dp, spring(0.55f, 600f), label = "kr")
-    val s by animateFloatAsState(if (pressed) 0.96f else 1f, spring(0.55f, 600f), label = "ks")
+    val bg by animateColorAsState(if (pressed) cs.surfaceContainerHighest else cs.surfaceContainerHigh, tween(80), label = "kb")
     Column(
-        Modifier.size(76.dp).graphicsLayer { scaleX = s; scaleY = s }.clip(RoundedCornerShape(r)).background(cs.surfaceContainerHigh)
+        Modifier.size(78.dp).clip(CircleShape).background(bg)
             .combinedClickable(interactionSource = src, indication = null, onClick = onClick, onLongClick = onLong),
         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center
     ) {
-        Text(main, style = MaterialTheme.typography.headlineMedium)
-        if (sub != null) Text(sub, style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant)
+        Text(main, fontSize = 32.sp, lineHeight = 34.sp, fontWeight = FontWeight.Normal)
+        if (sub != null) Text(sub, fontSize = 10.sp, lineHeight = 11.sp, fontWeight = FontWeight.Bold, color = cs.onSurfaceVariant)
     }
 }
 
@@ -111,7 +113,7 @@ fun DialerScreen(initial: String) {
     val matched = remember(number, contacts) { Repo.lookup(number)?.name }
 
     Surface(Modifier.fillMaxSize(), color = cs.surface) {
-        Box(Modifier.fillMaxSize().glow(cs.primaryContainer)) {
+        Box(Modifier.fillMaxSize()) {
             Column(
                 Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 20.dp, vertical = 8.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
@@ -125,19 +127,19 @@ fun DialerScreen(initial: String) {
                     Modifier.weight(1f).fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center
                 ) {
-                    val fs = when { number.length > 16 -> 22.sp; number.length > 12 -> 28.sp; else -> 36.sp }
+                    val fs = when { number.length > 16 -> 24.sp; number.length > 12 -> 32.sp; else -> 40.sp }
                     Text(
                         number.ifEmpty { " " }, maxLines = 1, overflow = TextOverflow.Clip, textAlign = TextAlign.Center,
-                        style = MaterialTheme.typography.displaySmall.copy(fontSize = fs, textDirection = TextDirection.Ltr),
+                        style = MaterialTheme.typography.displaySmall.copy(fontSize = fs, lineHeight = fs * 1.2f, fontWeight = FontWeight.Normal, textDirection = TextDirection.Ltr),
                         modifier = Modifier.fillMaxWidth()
                     )
                     if (matched != null) {
-                        Text(matched, style = MaterialTheme.typography.titleMedium, color = cs.primary)
+                        Text(matched, style = MaterialTheme.typography.bodyLarge, color = cs.onSurfaceVariant)
                     }
                     Spacer(Modifier.height(10.dp))
                     sugg.forEach { c ->
                         Row(
-                            Modifier.fillMaxWidth().padding(vertical = 2.dp).clip(RoundedCornerShape(22.dp))
+                            Modifier.fillMaxWidth().padding(vertical = 2.dp).clip(RoundedCornerShape(12.dp))
                                 .clickable { number = c.numbers.firstOrNull { n -> n.filter { it.isDigit() }.contains(digits) } ?: c.numbers.first() }
                                 .padding(6.dp),
                             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -155,7 +157,7 @@ fun DialerScreen(initial: String) {
                 }
 
                 CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Column(verticalArrangement = Arrangement.spacedBy(14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                         val rows = listOf(
                             listOf("1" to null, "2" to "ABC", "3" to "DEF"),
                             listOf("4" to "GHI", "5" to "JKL", "6" to "MNO"),
@@ -163,7 +165,7 @@ fun DialerScreen(initial: String) {
                             listOf("*" to null, "0" to "+", "#" to null)
                         )
                         rows.forEach { r ->
-                            Row(horizontalArrangement = Arrangement.spacedBy(22.dp)) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
                                 r.forEach { (k, sub) ->
                                     DialKey(
                                         k, sub, onClick = { press(k[0]) },
@@ -172,9 +174,9 @@ fun DialerScreen(initial: String) {
                                 }
                             }
                         }
-                        Row(horizontalArrangement = Arrangement.spacedBy(22.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Spacer(Modifier.size(76.dp))
-                            RoundAction(Ic.Phone, 76.dp, cs.tertiary, cs.onTertiary, desc = "اتصال", iconSize = 32.dp) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(20.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Spacer(Modifier.size(78.dp))
+                            RoundAction(Ic.Phone, 78.dp, cs.tertiary, cs.onTertiary, desc = "اتصال", iconSize = 32.dp) {
                                 if (number.isEmpty()) {
                                     if (lastOut != null) number = lastOut
                                 } else {
@@ -183,14 +185,14 @@ fun DialerScreen(initial: String) {
                                 }
                             }
                             Box(
-                                Modifier.size(76.dp).clip(RoundedCornerShape(38.dp))
+                                Modifier.size(78.dp).clip(CircleShape)
                                     .combinedClickable(
                                         onClick = { if (number.isNotEmpty()) number = number.dropLast(1) },
                                         onLongClick = { number = "" }
                                     ),
                                 contentAlignment = Alignment.Center
                             ) {
-                                if (number.isNotEmpty()) Icon(Ic.Backspace, "مسح", Modifier.size(28.dp), tint = cs.onSurfaceVariant)
+                                if (number.isNotEmpty()) Icon(Ic.Backspace, "مسح", Modifier.size(28.dp), tint = cs.onSurface)
                             }
                         }
                     }

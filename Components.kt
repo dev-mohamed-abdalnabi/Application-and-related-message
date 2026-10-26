@@ -85,6 +85,13 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.draw.alpha
 import com.mohamed.phone.Prefs
 import com.mohamed.phone.data.Fmt
 import kotlinx.coroutines.Dispatchers
@@ -94,7 +101,7 @@ import kotlin.math.cos
 import kotlin.math.min
 import kotlin.math.sin
 
-// ------------------------------------------------------------------ cookie
+// ------------------------------------------------------------------ cookie (هوية التطبيق: شكل الكوكي في الحالات الفاضية)
 class CookieShape(private val lobes: Int = 9, private val amp: Float = 0.06f) : Shape {
     override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline {
         val r = min(size.width, size.height) / 2f
@@ -117,7 +124,7 @@ class CookieShape(private val lobes: Int = 9, private val amp: Float = 0.06f) : 
 @Composable
 fun CookieIcon(
     icon: ImageVector, size: Dp, container: Color, tint: Color, modifier: Modifier = Modifier,
-    spin: Boolean = true, desc: String? = null, onClick: (() -> Unit)? = null
+    spin: Boolean = false, desc: String? = null, onClick: (() -> Unit)? = null
 ) {
     val shape = remember { CookieShape() }
     val rot by rememberInfiniteTransition(label = "cookie").animateFloat(
@@ -130,19 +137,15 @@ fun CookieIcon(
     }
 }
 
-// ------------------------------------------------------------------ glow
-@Composable
-fun Modifier.glow(color: Color, alpha: Float = 0.72f): Modifier {
-    val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
-    return this.drawBehind {
-        drawRect(
-            Brush.radialGradient(
-                listOf(color.copy(alpha = alpha), Color.Transparent),
-                center = Offset(size.width * (if (rtl) 0.12f else 0.88f), size.height * 0.04f),
-                radius = size.width * 0.95f
-            )
-        )
-    }
+// ------------------------------------------------------------------ iOS palette (لأيقونات الإعدادات)
+object IosColors {
+    val Blue = Color(0xFF007AFF)
+    val Green = Color(0xFF34C759)
+    val Orange = Color(0xFFFF9500)
+    val Red = Color(0xFFFF3B30)
+    val Purple = Color(0xFFAF52DE)
+    val Teal = Color(0xFF30B0C7)
+    val Gray = Color(0xFF8E8E93)
 }
 
 // ------------------------------------------------------------------ avatar
@@ -164,25 +167,22 @@ object Photos {
 @Composable
 fun Avatar(name: String, photo: String?, size: Dp, modifier: Modifier = Modifier, seed: String = name) {
     val cs = MaterialTheme.colorScheme
-    val palette = listOf(
-        cs.primaryContainer to cs.onPrimaryContainer,
-        cs.tertiaryContainer to cs.onTertiaryContainer,
-        cs.secondaryContainer to cs.onSecondaryContainer
-    )
-    val pick = palette[(seed.hashCode() and 0x7fffffff) % palette.size]
     val bmp by produceState<ImageBitmap?>(null, photo) {
         value = if (photo == null) null else withContext(Dispatchers.IO) { Photos.load(photo) }
     }
-    Box(modifier.size(size).clip(CircleShape).background(pick.first), contentAlignment = Alignment.Center) {
+    Box(
+        modifier.size(size).clip(CircleShape).background(cs.surfaceContainerHighest),
+        contentAlignment = Alignment.Center
+    ) {
         val b = bmp
         if (b != null) {
             Image(b, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
         } else {
             val ini = Fmt.initials(name)
             if (ini.isNotEmpty()) {
-                Text(ini, color = pick.second, fontSize = (size.value * 0.36f).sp, fontWeight = FontWeight.Bold)
+                Text(ini, color = cs.onSurfaceVariant, fontSize = (size.value * 0.38f).sp, fontWeight = FontWeight.Medium)
             } else {
-                Icon(Ic.Person, null, Modifier.size(size * 0.5f), tint = pick.second)
+                Icon(Ic.Person, null, Modifier.size(size * 0.52f), tint = cs.onSurfaceVariant)
             }
         }
     }
@@ -191,57 +191,65 @@ fun Avatar(name: String, photo: String?, size: Dp, modifier: Modifier = Modifier
 // ------------------------------------------------------------------ navigation
 class NavTab(val label: String, val icon: ImageVector, val badge: Int = 0)
 
+/** تاب بار iOS: مسطّح، أيقونة فوق الاسم، خط رفيع فوقه */
 @Composable
-fun FloatingNav(items: List<NavTab>, sel: Int, on: (Int) -> Unit) {
+fun TabBar(items: List<NavTab>, sel: Int, on: (Int) -> Unit) {
     val cs = MaterialTheme.colorScheme
     val hap = LocalHapticFeedback.current
-    Surface(shape = CircleShape, color = cs.surfaceContainerHigh, shadowElevation = 10.dp) {
-        Row(Modifier.padding(6.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+    Column(Modifier.fillMaxWidth().background(cs.surface)) {
+        Box(Modifier.fillMaxWidth().height(0.5.dp).background(cs.outlineVariant))
+        Row(Modifier.fillMaxWidth().height(52.dp)) {
             items.forEachIndexed { i, t ->
                 val a = i == sel
-                val bg by animateColorAsState(if (a) cs.primaryContainer else Color.Transparent, label = "nb")
-                Row(
-                    Modifier.height(54.dp).clip(CircleShape).background(bg)
+                val tint by animateColorAsState(if (a) cs.primary else cs.onSurfaceVariant, label = "tab")
+                Column(
+                    Modifier.weight(1f).fillMaxHeight()
                         .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
                             if (Prefs.haptic.value) hap.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             on(i)
-                        }
-                        .padding(horizontal = 20.dp).animateContentSize(spring(0.8f, 400f)),
-                    verticalAlignment = Alignment.CenterVertically
+                        },
+                    horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center
                 ) {
-                    val tint = if (a) cs.onPrimaryContainer else cs.onSurfaceVariant
-                    if (t.badge > 0 && !a) {
-                        BadgedBox(badge = { Badge() }) { Icon(t.icon, t.label, tint = tint) }
+                    if (t.badge > 0) {
+                        BadgedBox(badge = { Badge { Text(if (t.badge > 99) "99+" else t.badge.toString()) } }) {
+                            Icon(t.icon, t.label, Modifier.size(24.dp), tint = tint)
+                        }
                     } else {
-                        Icon(t.icon, t.label, tint = tint)
+                        Icon(t.icon, t.label, Modifier.size(24.dp), tint = tint)
                     }
-                    AnimatedVisibility(a, enter = fadeIn() + expandHorizontally(), exit = fadeOut() + shrinkHorizontally()) {
-                        Text(
-                            t.label, Modifier.padding(start = 10.dp), color = cs.onPrimaryContainer,
-                            style = MaterialTheme.typography.titleSmall, maxLines = 1
-                        )
-                    }
+                    Spacer(Modifier.height(2.dp))
+                    Text(t.label, color = tint, style = MaterialTheme.typography.labelSmall, maxLines = 1)
                 }
             }
         }
     }
 }
 
+/** سيجمنت كنترول iOS */
 @Composable
 fun Switcher(opts: List<String>, sel: Int, modifier: Modifier = Modifier, on: (Int) -> Unit) {
     val cs = MaterialTheme.colorScheme
-    BoxWithConstraints(modifier.fillMaxWidth().height(44.dp).clip(CircleShape).background(cs.surfaceContainerHigh).padding(4.dp)) {
+    val light = cs.surface.luminance() > 0.5f
+    val thumb = if (light) Color.White else Color(0xFF636366)
+    BoxWithConstraints(modifier.fillMaxWidth().height(34.dp).clip(RoundedCornerShape(9.dp)).background(cs.surfaceContainerHigh).padding(2.dp)) {
         val w = maxWidth / opts.size
-        val x by animateDpAsState(w * sel.coerceAtLeast(0), spring(0.8f, 420f), label = "sw")
-        if (sel >= 0) Box(Modifier.offset(x = x).width(w).fillMaxHeight().clip(CircleShape).background(cs.primary))
+        val x by animateDpAsState(w * sel.coerceAtLeast(0), spring(0.85f, 500f), label = "sw")
+        if (sel >= 0) Box(
+            Modifier.offset(x = x).width(w).fillMaxHeight()
+                .shadow(1.dp, RoundedCornerShape(7.dp)).clip(RoundedCornerShape(7.dp)).background(thumb)
+        )
         Row(Modifier.fillMaxSize()) {
             opts.forEachIndexed { i, o ->
-                val c by animateColorAsState(if (i == sel) cs.onPrimary else cs.onSurface, label = "swc")
                 Box(
-                    Modifier.weight(1f).fillMaxHeight().clip(CircleShape)
+                    Modifier.weight(1f).fillMaxHeight()
                         .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { on(i) },
                     contentAlignment = Alignment.Center
-                ) { Text(o, color = c, style = MaterialTheme.typography.titleSmall, maxLines = 1) }
+                ) {
+                    Text(
+                        o, color = cs.onSurface, maxLines = 1,
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = if (i == sel) FontWeight.Bold else FontWeight.Medium)
+                    )
+                }
             }
         }
     }
@@ -251,41 +259,39 @@ fun Switcher(opts: List<String>, sel: Int, modifier: Modifier = Modifier, on: (I
 @Composable
 fun BigButton(
     text: String, modifier: Modifier = Modifier, icon: ImageVector? = null, tonal: Boolean = false,
-    danger: Boolean = false, height: Dp = 64.dp, onClick: () -> Unit
+    danger: Boolean = false, height: Dp = 52.dp, onClick: () -> Unit
 ) {
     val cs = MaterialTheme.colorScheme
     val src = remember { MutableInteractionSource() }
     val pressed by src.collectIsPressedAsState()
-    val r by animateDpAsState(if (pressed) 18.dp else 32.dp, spring(0.55f, 600f), label = "r")
-    val s by animateFloatAsState(if (pressed) 0.97f else 1f, spring(0.55f, 600f), label = "s")
-    val bg = when { danger -> cs.error; tonal -> cs.secondaryContainer; else -> cs.primary }
-    val fg = when { danger -> cs.onError; tonal -> cs.onSecondaryContainer; else -> cs.onPrimary }
+    val a by animateFloatAsState(if (pressed) 0.65f else 1f, tween(90), label = "a")
+    val bg = when { danger -> cs.error; tonal -> cs.surfaceContainerHigh; else -> cs.primary }
+    val fg = when { danger -> cs.onError; tonal -> cs.primary; else -> cs.onPrimary }
     Row(
-        modifier.fillMaxWidth().height(height).graphicsLayer { scaleX = s; scaleY = s }
-            .clip(RoundedCornerShape(r)).background(bg)
+        modifier.fillMaxWidth().height(height).alpha(a)
+            .clip(RoundedCornerShape(14.dp)).background(bg)
             .clickable(interactionSource = src, indication = null, onClick = onClick),
         horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically
     ) {
         if (icon != null) {
-            Icon(icon, null, Modifier.size(24.dp), tint = fg)
-            Spacer(Modifier.width(10.dp))
+            Icon(icon, null, Modifier.size(22.dp), tint = fg)
+            Spacer(Modifier.width(8.dp))
         }
         Text(text, color = fg, style = MaterialTheme.typography.titleMedium)
     }
 }
 
-/** زر دايري بيتحوّل شكله وهو مضغوط (للتحكم في المكالمات والكيباد) */
+/** زر دايري (الكيباد، الإرسال، زرار الاتصال) */
 @Composable
 fun RoundAction(
     icon: ImageVector, size: Dp, container: Color, tint: Color, modifier: Modifier = Modifier,
-    desc: String? = null, iconSize: Dp = 28.dp, onClick: () -> Unit
+    desc: String? = null, iconSize: Dp = 26.dp, onClick: () -> Unit
 ) {
     val src = remember { MutableInteractionSource() }
     val pressed by src.collectIsPressedAsState()
-    val r by animateDpAsState(if (pressed) size * 0.3f else size / 2, spring(0.55f, 600f), label = "ra")
-    val s by animateFloatAsState(if (pressed) 0.95f else 1f, spring(0.55f, 600f), label = "rs")
+    val a by animateFloatAsState(if (pressed) 0.65f else 1f, tween(90), label = "ra")
     Box(
-        modifier.size(size).graphicsLayer { scaleX = s; scaleY = s }.clip(RoundedCornerShape(r)).background(container)
+        modifier.size(size).alpha(a).clip(CircleShape).background(container)
             .clickable(interactionSource = src, indication = null, onClick = onClick),
         contentAlignment = Alignment.Center
     ) { Icon(icon, desc, Modifier.size(iconSize), tint = tint) }
@@ -298,25 +304,40 @@ fun IconBtn(icon: ImageVector, desc: String, modifier: Modifier = Modifier, tint
     }
 }
 
+/** زر دايري رمادي بأيقونة زرقا في الهيدر (زي ellipsis.circle) */
+@Composable
+fun HeaderBtn(icon: ImageVector, desc: String, onClick: () -> Unit) {
+    val cs = MaterialTheme.colorScheme
+    Box(
+        Modifier.size(34.dp).clip(CircleShape).background(cs.surfaceContainerHigh).clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) { Icon(icon, desc, Modifier.size(18.dp), tint = cs.primary) }
+}
+
+/** رجوع على طريقة iOS: سهم + كلمة بلون التطبيق */
 @Composable
 fun BackPill(onClick: () -> Unit) {
     val cs = MaterialTheme.colorScheme
-    Box(
-        Modifier.size(44.dp).clip(CircleShape).background(cs.surfaceContainerHigh).clickable(onClick = onClick),
-        contentAlignment = Alignment.Center
-    ) { Icon(Ic.Back, "رجوع", Modifier.size(22.dp), tint = cs.onSurface) }
+    Row(
+        Modifier.height(40.dp).clip(RoundedCornerShape(10.dp)).clickable(onClick = onClick).padding(end = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(Ic.Back, "رجوع", Modifier.size(24.dp), tint = cs.primary)
+        Text("رجوع", color = cs.primary, style = MaterialTheme.typography.bodyLarge)
+    }
 }
 
 @Composable
 fun PillBtn(icon: ImageVector, text: String? = null, active: Boolean = false, tint: Color? = null, onClick: () -> Unit) {
     val cs = MaterialTheme.colorScheme
-    val bg = if (active) cs.primaryContainer else cs.surfaceContainerHigh
-    val fg = tint ?: if (active) cs.onPrimaryContainer else cs.onSurface
+    val fg = tint ?: cs.primary
+    val bg = if (active) cs.primary.copy(alpha = 0.15f) else cs.surfaceContainerHigh
     Row(
-        Modifier.height(44.dp).clip(CircleShape).background(bg).clickable(onClick = onClick).padding(horizontal = 14.dp),
+        Modifier.height(36.dp).clip(CircleShape).background(bg).clickable(onClick = onClick)
+            .padding(horizontal = if (text == null) 11.dp else 14.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        Icon(icon, text, Modifier.size(20.dp), tint = fg)
+        Icon(icon, text, Modifier.size(18.dp), tint = fg)
         if (text != null) Text(text, color = fg, style = MaterialTheme.typography.labelLarge)
     }
 }
@@ -333,47 +354,90 @@ fun fieldColors(): TextFieldColors {
 }
 
 // ------------------------------------------------------------------ blocks
+/** عنوان كبير زي iOS، وزرار الأكشن فوقه */
 @Composable
 fun TabHeader(title: String, subtitle: String, badge: @Composable () -> Unit) {
-    Row(
-        Modifier.fillMaxWidth().statusBarsPadding().padding(top = 4.dp),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Column(Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.headlineSmall)
-            Text(subtitle, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    val cs = MaterialTheme.colorScheme
+    Column(Modifier.fillMaxWidth().statusBarsPadding().padding(top = 8.dp)) {
+        Row(Modifier.fillMaxWidth().height(36.dp), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+            badge()
         }
-        badge()
+        Text(title, Modifier.padding(top = 6.dp), style = MaterialTheme.typography.displaySmall)
+        Text(subtitle, style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
     }
 }
 
+/** عنوان قسم رمادي صغير (فوق الجروبات) */
 @Composable
 fun SectionTitle(text: String, first: Boolean = false) {
     Text(
-        text, Modifier.padding(top = if (first) 0.dp else 28.dp, bottom = 6.dp),
-        style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary
+        text, Modifier.padding(top = if (first) 0.dp else 26.dp, bottom = 7.dp, start = 16.dp),
+        style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant
     )
+}
+
+/** حرف الفهرس في جهات الاتصال */
+@Composable
+fun IndexHeader(letter: String) {
+    val cs = MaterialTheme.colorScheme
+    Text(
+        letter, Modifier.fillMaxWidth().padding(top = 6.dp).clip(RoundedCornerShape(8.dp)).background(cs.surfaceContainerLow)
+            .padding(horizontal = 14.dp, vertical = 4.dp),
+        style = MaterialTheme.typography.titleSmall, color = cs.onSurfaceVariant
+    )
+}
+
+/** كارت مجمّع زي iOS (الصفوف جواه بينها خط رفيع) */
+@Composable
+fun GroupCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+    Column(
+        modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.surfaceContainerLow),
+        content = content
+    )
+}
+
+/** خط فاصل رفيع (start = المسافة من أول الصف) */
+@Composable
+fun RowDivider(start: Dp = 0.dp) {
+    Box(Modifier.fillMaxWidth().padding(start = start).height(0.5.dp).background(MaterialTheme.colorScheme.outlineVariant))
 }
 
 @Composable
 fun SettingRow(
     icon: ImageVector, title: String, sub: String? = null, modifier: Modifier = Modifier,
-    onClick: (() -> Unit)? = null, trailing: (@Composable () -> Unit)? = null
+    iconBg: Color = IosColors.Gray, onClick: (() -> Unit)? = null, trailing: (@Composable () -> Unit)? = null
 ) {
     val cs = MaterialTheme.colorScheme
-    val click = if (onClick != null) Modifier.clip(RoundedCornerShape(24.dp)).clickable(onClick = onClick) else Modifier
+    val click = if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier
     Row(
-        modifier.fillMaxWidth().then(click).padding(vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)
+        modifier.fillMaxWidth().then(click).heightIn(min = 52.dp).padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Box(Modifier.size(46.dp).clip(RoundedCornerShape(16.dp)).background(cs.secondaryContainer), contentAlignment = Alignment.Center) {
-            Icon(icon, null, Modifier.size(22.dp), tint = cs.onSecondaryContainer)
+        Box(Modifier.size(30.dp).clip(RoundedCornerShape(7.dp)).background(iconBg), contentAlignment = Alignment.Center) {
+            Icon(icon, null, Modifier.size(18.dp), tint = Color.White)
         }
         Column(Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.titleMedium)
-            if (sub != null) Text(sub, style = MaterialTheme.typography.bodyMedium, color = cs.onSurfaceVariant)
+            Text(title, style = MaterialTheme.typography.bodyLarge)
+            if (sub != null) Text(sub, style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
         }
         if (trailing != null) trailing()
+    }
+}
+
+/** سويتش iOS: أخضر، ثامب أبيض */
+@Composable
+fun IosSwitch(checked: Boolean, onChange: (Boolean) -> Unit) {
+    val cs = MaterialTheme.colorScheme
+    val track by animateColorAsState(if (checked) cs.tertiary else cs.surfaceContainerHighest, label = "swt")
+    val x by animateDpAsState(if (checked) 20.dp else 0.dp, spring(0.75f, 520f), label = "swx")
+    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+        Box(
+            Modifier.size(width = 51.dp, height = 31.dp).clip(CircleShape).background(track)
+                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onChange(!checked) }
+                .padding(2.dp)
+        ) {
+            Box(Modifier.offset(x = x).size(27.dp).shadow(2.dp, CircleShape).background(Color.White, CircleShape))
+        }
     }
 }
 
@@ -381,12 +445,12 @@ fun SettingRow(
 fun EmptyState(icon: ImageVector, title: String, body: String) {
     val cs = MaterialTheme.colorScheme
     Column(
-        Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 40.dp),
-        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)
+        Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 48.dp),
+        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        CookieIcon(icon, 128.dp, cs.primaryContainer, cs.onPrimaryContainer)
+        CookieIcon(icon, 96.dp, cs.surfaceContainerHigh, cs.onSurfaceVariant)
         Spacer(Modifier.height(10.dp))
-        Text(title, style = MaterialTheme.typography.headlineSmall)
+        Text(title, style = MaterialTheme.typography.titleLarge)
         Text(body, style = MaterialTheme.typography.bodyMedium, color = cs.onSurfaceVariant, textAlign = TextAlign.Center)
     }
 }
@@ -396,7 +460,7 @@ fun MenuItem(text: String, icon: ImageVector, danger: Boolean = false, onClick: 
     val cs = MaterialTheme.colorScheme
     val c = if (danger) cs.error else cs.onSurface
     DropdownMenuItem(
-        text = { Text(text, color = c, style = MaterialTheme.typography.titleSmall) },
+        text = { Text(text, color = c, style = MaterialTheme.typography.bodyLarge) },
         leadingIcon = { Icon(icon, null, Modifier.size(20.dp), tint = c) },
         onClick = onClick
     )
@@ -414,55 +478,57 @@ fun ConfirmDialog(
         text = { Text(text, style = MaterialTheme.typography.bodyMedium) },
         confirmButton = {
             TextButton(onClick = onConfirm) {
-                Text(confirm, color = if (danger) cs.error else cs.primary, style = MaterialTheme.typography.titleSmall)
+                Text(confirm, color = if (danger) cs.error else cs.primary, style = MaterialTheme.typography.titleMedium)
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("إلغاء", style = MaterialTheme.typography.titleSmall) } },
-        shape = RoundedCornerShape(28.dp)
+        dismissButton = { TextButton(onClick = onDismiss) { Text("إلغاء", style = MaterialTheme.typography.bodyLarge) } },
+        shape = RoundedCornerShape(14.dp)
     )
 }
 
 fun toast(ctx: Context, msg: String) = Toast.makeText(ctx, msg, Toast.LENGTH_SHORT).show()
 
 
+/** شريط بحث iOS: رمادي، حواف 10 */
 @Composable
 fun SearchBar(value: String, onChange: (String) -> Unit, hint: String, modifier: Modifier = Modifier) {
     val cs = MaterialTheme.colorScheme
     Row(
-        modifier.fillMaxWidth().height(46.dp).clip(CircleShape).background(cs.surfaceContainerHigh).padding(horizontal = 16.dp),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)
+        modifier.fillMaxWidth().height(38.dp).clip(RoundedCornerShape(10.dp)).background(cs.surfaceContainerHigh).padding(horizontal = 10.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Icon(Ic.Search, null, Modifier.size(20.dp), tint = cs.onSurfaceVariant)
+        Icon(Ic.Search, null, Modifier.size(18.dp), tint = cs.onSurfaceVariant)
         Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
-            if (value.isEmpty()) Text(hint, style = MaterialTheme.typography.bodyMedium, color = cs.onSurfaceVariant, maxLines = 1)
+            if (value.isEmpty()) Text(hint, style = MaterialTheme.typography.bodyLarge, color = cs.onSurfaceVariant, maxLines = 1)
             BasicTextField(
                 value = value, onValueChange = onChange, singleLine = true,
-                textStyle = MaterialTheme.typography.bodyMedium.copy(color = cs.onSurface),
+                textStyle = MaterialTheme.typography.bodyLarge.copy(color = cs.onSurface),
                 cursorBrush = SolidColor(cs.primary), modifier = Modifier.fillMaxWidth()
             )
         }
-        if (value.isNotEmpty()) IconBtn(Ic.Close, "مسح") { onChange("") }
+        if (value.isNotEmpty()) IconBtn(Ic.Close, "مسح", Modifier.size(28.dp)) { onChange("") }
     }
 }
 
+/** أزرار الإجراءات في صفحة الجهة: مربع رمادي، أيقونة وكلمة بلون التطبيق */
 @Composable
 fun ActionTile(
     icon: ImageVector, label: String, modifier: Modifier = Modifier, active: Boolean = false,
-    danger: Boolean = false, tileHeight: Dp = 80.dp, onClick: () -> Unit
+    danger: Boolean = false, tileHeight: Dp = 66.dp, onClick: () -> Unit
 ) {
     val cs = MaterialTheme.colorScheme
     val src = remember { MutableInteractionSource() }
     val pressed by src.collectIsPressedAsState()
-    val r by animateDpAsState(if (pressed) 16.dp else 26.dp, spring(0.55f, 600f), label = "tr")
-    val bg = when { danger -> cs.errorContainer; active -> cs.primary; else -> cs.surfaceContainerHigh }
-    val fg = when { danger -> cs.onErrorContainer; active -> cs.onPrimary; else -> cs.onSurface }
+    val a by animateFloatAsState(if (pressed) 0.65f else 1f, tween(90), label = "ta")
+    val bg = when { danger -> cs.errorContainer; active -> cs.primary; else -> cs.surfaceContainerLow }
+    val fg = when { danger -> cs.onErrorContainer; active -> cs.onPrimary; else -> cs.primary }
     Column(
-        modifier.height(tileHeight).clip(RoundedCornerShape(r)).background(bg)
+        modifier.height(tileHeight).alpha(a).clip(RoundedCornerShape(12.dp)).background(bg)
             .clickable(interactionSource = src, indication = null, onClick = onClick),
         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center
     ) {
-        Icon(icon, null, Modifier.size(24.dp), tint = fg)
-        Spacer(Modifier.height(6.dp))
+        Icon(icon, null, Modifier.size(22.dp), tint = fg)
+        Spacer(Modifier.height(4.dp))
         Text(label, color = fg, style = MaterialTheme.typography.labelMedium, maxLines = 1)
     }
 }

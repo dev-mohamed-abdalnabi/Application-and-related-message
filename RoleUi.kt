@@ -1,5 +1,6 @@
 package com.mohamed.phone.ui
 
+import androidx.compose.foundation.layout.Box
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
@@ -66,14 +67,16 @@ fun openAppSettings(ctx: android.content.Context) {
 fun RoleBanner(icon: ImageVector, title: String, body: String, onClick: () -> Unit) {
     val cs = MaterialTheme.colorScheme
     Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp)).background(cs.primaryContainer)
-            .clickable(onClick = onClick).padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(cs.surfaceContainerLow)
+            .clickable(onClick = onClick).padding(14.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Icon(icon, null, Modifier.size(26.dp), tint = cs.onPrimaryContainer)
+        Box(Modifier.size(36.dp).clip(RoundedCornerShape(9.dp)).background(cs.primary), contentAlignment = Alignment.Center) {
+            Icon(icon, null, Modifier.size(20.dp), tint = cs.onPrimary)
+        }
         Column(Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.titleSmall, color = cs.onPrimaryContainer)
-            Text(body, style = MaterialTheme.typography.bodySmall, color = cs.onPrimaryContainer.copy(alpha = 0.8f))
+            Text(title, style = MaterialTheme.typography.titleSmall)
+            Text(body, style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
         }
     }
 }

@@ -1,5 +1,8 @@
 package com.mohamed.phone
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
@@ -9,12 +12,12 @@ import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,9 +28,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -36,6 +40,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -47,27 +52,32 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.core.view.WindowCompat
 import com.mohamed.phone.data.Fmt
 import com.mohamed.phone.telecom.CallHub
 import com.mohamed.phone.telecom.Dialing
 import com.mohamed.phone.ui.AppTheme
-import com.mohamed.phone.ui.ActionTile
 import com.mohamed.phone.ui.Avatar
 import com.mohamed.phone.ui.BigButton
 import com.mohamed.phone.ui.Ic
 import com.mohamed.phone.ui.PillBtn
-import com.mohamed.phone.ui.RoundAction
-import com.mohamed.phone.ui.glow
+import com.mohamed.phone.ui.callColorScheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -103,33 +113,102 @@ class InCallActivity : ComponentActivity() {
     }
 }
 
+private val EndRed = Color(0xFFFF3B30)
+private val AnswerGreen = Color(0xFF34C759)
+private val GlassBg = Color.White.copy(alpha = 0.16f)
+private val DialogBg = Color(0xFF2C2C2E)
+
+private val KeySubs = mapOf(
+    '2' to "ABC", '3' to "DEF", '4' to "GHI", '5' to "JKL", '6' to "MNO", '7' to "PQRS", '8' to "TUV", '9' to "WXYZ", '0' to "+"
+)
+
+private tailrec fun Context.hostActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.hostActivity()
+    else -> null
+}
+
+/** زرار دايري زي iOS: دايرة كبيرة والاسم تحتها */
 @Composable
-private fun WideButton(
-    icon: ImageVector, text: String, bg: Color, fg: Color, modifier: Modifier = Modifier,
-    h: Dp = 68.dp, onClick: () -> Unit
+private fun CallCircle(
+    icon: ImageVector, label: String?, bg: Color, fg: Color, modifier: Modifier = Modifier,
+    size: Dp = 76.dp, iconSize: Dp = 30.dp, onClick: () -> Unit
 ) {
-    Row(
-        modifier.fillMaxWidth().height(h).clip(CircleShape).background(bg).clickable(onClick = onClick),
-        horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically
+    val src = remember { MutableInteractionSource() }
+    val pressed by src.collectIsPressedAsState()
+    val a by animateFloatAsState(if (pressed) 0.6f else 1f, tween(90), label = "cc")
+    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(
+            Modifier.size(size).alpha(a).clip(CircleShape).background(bg)
+                .clickable(interactionSource = src, indication = null, onClick = onClick),
+            contentAlignment = Alignment.Center
+        ) { Icon(icon, label, Modifier.size(iconSize), tint = fg) }
+        if (label != null) {
+            Spacer(Modifier.height(8.dp))
+            Text(label, color = Color.White, style = MaterialTheme.typography.labelMedium, maxLines = 1)
+        }
+    }
+}
+
+/** زرار تشغيل/إيقاف: لما يشتغل بيتحول أبيض (زي iOS) */
+@Composable
+private fun ToggleCircle(icon: ImageVector, label: String, active: Boolean, onClick: () -> Unit) {
+    CallCircle(
+        icon, label, if (active) Color.White else GlassBg, if (active) Color(0xFF1C1C1E) else Color.White,
+        onClick = onClick
+    )
+}
+
+@Composable
+private fun CallKey(main: String, sub: String?, onClick: () -> Unit) {
+    val src = remember { MutableInteractionSource() }
+    val pressed by src.collectIsPressedAsState()
+    Column(
+        Modifier.size(68.dp).clip(CircleShape).background(if (pressed) Color.White.copy(alpha = 0.34f) else GlassBg)
+            .clickable(interactionSource = src, indication = null, onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center
     ) {
-        Icon(icon, null, Modifier.size(26.dp), tint = fg)
-        Spacer(Modifier.width(10.dp))
-        Text(text, color = fg, style = MaterialTheme.typography.titleMedium)
+        Text(main, color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Normal, lineHeight = 32.sp)
+        if (sub != null) Text(sub, color = Color.White.copy(alpha = 0.7f), fontSize = 9.sp, fontWeight = FontWeight.Bold, lineHeight = 10.sp)
     }
 }
 
 @Composable
-private fun BigKey(label: String, size: Dp = 56.dp, onClick: () -> Unit) {
-    val cs = MaterialTheme.colorScheme
-    Box(
-        Modifier.size(size).clip(CircleShape).background(cs.surfaceContainerHigh).clickable(onClick = onClick),
-        contentAlignment = Alignment.Center
-    ) { Text(label, style = MaterialTheme.typography.titleLarge) }
+fun InCallScreen(onFinish: () -> Unit, onAddCall: () -> Unit, preview: Boolean = false, previewRinging: Boolean = true) {
+    val appCs = MaterialTheme.colorScheme
+    val callCs = remember(appCs.primary, appCs.onPrimary) { callColorScheme(appCs) }
+    val view = LocalView.current
+
+    // شاشة المكالمة دايمًا داكنة: أيقونات الستاتس بار بيضا، وبنرجّعها لما نخرج (مهم في المعاينة)
+    DisposableEffect(Unit) {
+        val w = view.context.hostActivity()?.window
+        val c = w?.let { WindowCompat.getInsetsController(it, view) }
+        val prevStatus = c?.isAppearanceLightStatusBars
+        val prevNav = c?.isAppearanceLightNavigationBars
+        c?.isAppearanceLightStatusBars = false
+        c?.isAppearanceLightNavigationBars = false
+        onDispose {
+            if (c != null && prevStatus != null && prevNav != null) {
+                c.isAppearanceLightStatusBars = prevStatus
+                c.isAppearanceLightNavigationBars = prevNav
+            }
+        }
+    }
+
+    MaterialTheme(colorScheme = callCs, typography = MaterialTheme.typography) {
+        Box(
+            Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xFF2A2A2D), Color(0xFF09090A))))
+        ) {
+            Surface(Modifier.fillMaxSize(), color = Color.Transparent, contentColor = Color.White) {
+                CallBody(onFinish, onAddCall, preview, previewRinging)
+            }
+        }
+    }
 }
 
 @Suppress("DEPRECATION")
 @Composable
-fun InCallScreen(onFinish: () -> Unit, onAddCall: () -> Unit, preview: Boolean = false, previewRinging: Boolean = true) {
+private fun CallBody(onFinish: () -> Unit, onAddCall: () -> Unit, preview: Boolean, previewRinging: Boolean) {
     val cs = MaterialTheme.colorScheme
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -168,177 +247,180 @@ fun InCallScreen(onFinish: () -> Unit, onAddCall: () -> Unit, preview: Boolean =
     val cur = holder[0]
     val ended = main == null
 
-    Surface(Modifier.fillMaxSize(), color = cs.surface) {
-        Box(Modifier.fillMaxSize().glow(if (cur?.state == Call.STATE_RINGING) cs.tertiaryContainer else cs.primaryContainer)) {
-            if (cur == null) return@Box
-            val ringing = !ended && cur.state == Call.STATE_RINGING
-            val others = list.filter { it !== main }
-            val status = when {
-                ended -> "المكالمة انتهت"
-                cur.state == Call.STATE_ACTIVE && cur.connectMs > 0 -> Fmt.clock((now - cur.connectMs) / 1000)
-                else -> CallHub.stateText(cur.state)
-            }
-            val route = if (preview) pvRoute else (audio?.route ?: CallAudioState.ROUTE_EARPIECE)
-            val btOk = !preview && ((audio?.supportedRouteMask ?: 0) and CallAudioState.ROUTE_BLUETOOTH) != 0
-            val isMuted = if (preview) muted else (audio?.isMuted ?: muted)
-            val routeLabel = when (route) {
-                CallAudioState.ROUTE_SPEAKER -> "السماعة"
-                CallAudioState.ROUTE_BLUETOOTH -> "بلوتوث"
-                else -> "الأذن"
-            }
-            val padMode = showPad && !ringing && !ended
+    if (cur == null) return
+    val ringing = !ended && cur.state == Call.STATE_RINGING
+    val others = list.filter { it !== main }
+    val status = when {
+        ended -> "المكالمة انتهت"
+        cur.state == Call.STATE_ACTIVE && cur.connectMs > 0 -> Fmt.clock((now - cur.connectMs) / 1000)
+        else -> CallHub.stateText(cur.state)
+    }
+    val route = if (preview) pvRoute else (audio?.route ?: CallAudioState.ROUTE_EARPIECE)
+    val btOk = !preview && ((audio?.supportedRouteMask ?: 0) and CallAudioState.ROUTE_BLUETOOTH) != 0
+    val isMuted = if (preview) muted else (audio?.isMuted ?: muted)
+    val speakerOn = route == CallAudioState.ROUTE_SPEAKER
+    val btOn = route == CallAudioState.ROUTE_BLUETOOTH
+    val padMode = showPad && !ringing && !ended
 
-            Column(
-                Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 20.dp, vertical = 12.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Column(
-                    Modifier.weight(1f).fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center
+    Column(
+        Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()
+            .padding(start = 24.dp, end = 24.dp, top = 8.dp, bottom = 28.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // ---------- الاسم والحالة
+        Column(
+            Modifier.fillMaxWidth().padding(top = if (padMode) 4.dp else 36.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            if (!padMode) {
+                Avatar(cur.label, cur.photo, if (ringing) 120.dp else 92.dp, seed = cur.number)
+                Spacer(Modifier.height(18.dp))
+            }
+            Text(
+                cur.label,
+                style = (if (padMode) MaterialTheme.typography.titleLarge else if (ringing) MaterialTheme.typography.headlineLarge else MaterialTheme.typography.headlineMedium)
+                    .copy(textDirection = TextDirection.Content),
+                textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis
+            )
+            if (!padMode && cur.name != null && cur.number.isNotEmpty()) {
+                Text(
+                    cur.number, style = MaterialTheme.typography.bodyLarge.copy(textDirection = TextDirection.Ltr),
+                    color = cs.onSurfaceVariant
+                )
+            }
+            Spacer(Modifier.height(4.dp))
+            Text(
+                status, style = MaterialTheme.typography.bodyLarge,
+                color = if (ended) cs.error else cs.onSurfaceVariant
+            )
+            others.forEach { o ->
+                Spacer(Modifier.height(14.dp))
+                Row(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(cs.surfaceContainer)
+                        .padding(start = 16.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    if (padMode) {
-                        Text(
-                            cur.label + " · " + status, style = MaterialTheme.typography.titleSmall,
-                            color = cs.primary, maxLines = 1, overflow = TextOverflow.Ellipsis
-                        )
-                        Text(
-                            typed.takeLast(20).ifEmpty { " " },
-                            style = MaterialTheme.typography.headlineSmall.copy(textDirection = TextDirection.Ltr),
-                            modifier = Modifier.padding(vertical = 10.dp)
-                        )
-                        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                listOf("123", "456", "789", "*0#").forEach { row ->
-                                    Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                                        row.forEach { ch ->
-                                            BigKey(ch.toString(), 54.dp) {
-                                                typed += ch
-                                                scope.launch {
-                                                    cur.call?.playDtmfTone(ch); delay(140); cur.call?.stopDtmfTone()
-                                                }
-                                            }
+                    Text(
+                        o.label + " · " + CallHub.stateText(o.state), Modifier.weight(1f),
+                        style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis
+                    )
+                    PillBtn(Ic.Swap, "بدّل") { o.call?.let { CallHub.hold(it, false) } }
+                }
+            }
+        }
+
+        Spacer(Modifier.weight(1f))
+
+        // ---------- الأزرار
+        if (ringing) {
+            CallCircle(Ic.Message, "رسالة", GlassBg, Color.White, size = 56.dp, iconSize = 22.dp) { quick = true }
+            Spacer(Modifier.height(40.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                CallCircle(Ic.PhoneEnd, "رفض", EndRed, Color.White) { doReject(cur) }
+                CallCircle(Ic.Phone, "رد", AnswerGreen, Color.White) { doAnswer(cur) }
+            }
+        } else if (!ended) {
+            if (padMode) {
+                Text(
+                    typed.takeLast(20).ifEmpty { " " },
+                    style = MaterialTheme.typography.displaySmall.copy(textDirection = TextDirection.Ltr, fontWeight = FontWeight.Normal),
+                    maxLines = 1, modifier = Modifier.padding(bottom = 14.dp)
+                )
+                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        listOf("123", "456", "789", "*0#").forEach { row ->
+                            Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                                row.forEach { ch ->
+                                    CallKey(ch.toString(), KeySubs[ch]) {
+                                        typed += ch
+                                        scope.launch {
+                                            cur.call?.playDtmfTone(ch); delay(140); cur.call?.stopDtmfTone()
                                         }
                                     }
                                 }
                             }
                         }
+                    }
+                }
+                Spacer(Modifier.height(22.dp))
+                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    CallCircle(Ic.PhoneEnd, null, EndRed, Color.White) { doHangup(cur) }
+                    Text(
+                        "إخفاء", Modifier.align(Alignment.CenterEnd).clip(RoundedCornerShape(10.dp)).clickable { showPad = false }.padding(12.dp),
+                        style = MaterialTheme.typography.titleMedium, color = Color.White
+                    )
+                }
+            } else {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                    ToggleCircle(if (isMuted) Ic.MicOff else Ic.Mic, "كتم", isMuted) {
+                        muted = !isMuted
+                        if (!preview) CallHub.setMuted(!isMuted)
+                    }
+                    ToggleCircle(Ic.Keypad, "الأرقام", false) { showPad = true }
+                    ToggleCircle(Ic.Speaker, if (btOn) "بلوتوث" else "السماعة", speakerOn || btOn) {
+                        val next = when {
+                            speakerOn -> if (btOk) CallAudioState.ROUTE_BLUETOOTH else CallAudioState.ROUTE_WIRED_OR_EARPIECE
+                            btOn -> CallAudioState.ROUTE_WIRED_OR_EARPIECE
+                            else -> CallAudioState.ROUTE_SPEAKER
+                        }
+                        if (preview) { pvRoute = next } else { CallHub.setRoute(next) }
+                    }
+                }
+                Spacer(Modifier.height(22.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                    ToggleCircle(Ic.Add, "إضافة", false) { onAddCall() }
+                    ToggleCircle(Ic.Pause, "تعليق", cur.state == Call.STATE_HOLDING) {
+                        if (preview) {
+                            pvHold = !pvHold
+                        } else if (cur.canHold) {
+                            cur.call?.let { CallHub.hold(it, cur.state != Call.STATE_HOLDING) }
+                        }
+                    }
+                    if (cur.canMerge) {
+                        ToggleCircle(Ic.Merge, "دمج", false) { others.firstOrNull()?.call?.let { cur.call?.conference(it) } }
+                    } else if (cur.canSwap) {
+                        ToggleCircle(Ic.Swap, "تبديل", false) { cur.call?.swapConference() }
                     } else {
-                        Avatar(cur.label, cur.photo, if (ringing) 132.dp else 104.dp, seed = cur.number)
-                        Spacer(Modifier.height(16.dp))
-                        Text(
-                            cur.label, style = MaterialTheme.typography.headlineMedium.copy(textDirection = TextDirection.Content),
-                            textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis
-                        )
-                        if (cur.name != null && cur.number.isNotEmpty()) {
-                            Text(
-                                cur.number, style = MaterialTheme.typography.bodyMedium.copy(textDirection = TextDirection.Ltr),
-                                color = cs.onSurfaceVariant
-                            )
-                        }
-                        Spacer(Modifier.height(8.dp))
-                        Text(status, style = MaterialTheme.typography.titleMedium, color = if (ended) cs.error else cs.primary)
-                        others.forEach { o ->
-                            Spacer(Modifier.height(12.dp))
-                            Row(
-                                Modifier.fillMaxWidth().clip(CircleShape).background(cs.surfaceContainerHigh).padding(start = 18.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(
-                                    o.label + " · " + CallHub.stateText(o.state), Modifier.weight(1f),
-                                    style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis
-                                )
-                                PillBtn(Ic.Swap, "بدّل") { o.call?.let { CallHub.hold(it, false) } }
-                            }
-                        }
+                        Spacer(Modifier.size(76.dp))
                     }
                 }
-
-                if (ringing) {
-                    PillBtn(Ic.Message, "رفض برسالة") { quick = true }
-                    Spacer(Modifier.height(16.dp))
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        WideButton(Ic.PhoneEnd, "رفض", cs.error, cs.onError, Modifier.weight(1f), 72.dp) { doReject(cur) }
-                        WideButton(Ic.Phone, "رد", cs.tertiary, cs.onTertiary, Modifier.weight(1f), 72.dp) { doAnswer(cur) }
-                    }
-                    Spacer(Modifier.height(8.dp))
-                } else if (!ended) {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        ActionTile(if (isMuted) Ic.MicOff else Ic.Mic, "كتم", Modifier.weight(1f), active = isMuted) {
-                            muted = !isMuted
-                            if (!preview) CallHub.setMuted(!isMuted)
-                        }
-                        ActionTile(
-                            Ic.Speaker, routeLabel, Modifier.weight(1f),
-                            active = route == CallAudioState.ROUTE_SPEAKER || route == CallAudioState.ROUTE_BLUETOOTH
-                        ) {
-                            val next = when {
-                                route == CallAudioState.ROUTE_SPEAKER -> if (btOk) CallAudioState.ROUTE_BLUETOOTH else CallAudioState.ROUTE_WIRED_OR_EARPIECE
-                                route == CallAudioState.ROUTE_BLUETOOTH -> CallAudioState.ROUTE_WIRED_OR_EARPIECE
-                                else -> CallAudioState.ROUTE_SPEAKER
-                            }
-                            if (preview) { pvRoute = next } else { CallHub.setRoute(next) }
-                        }
-                        ActionTile(Ic.Keypad, "الأرقام", Modifier.weight(1f), active = showPad) { showPad = !showPad }
-                    }
-                    if (!showPad) {
-                        Spacer(Modifier.height(10.dp))
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            ActionTile(Ic.Pause, "تعليق", Modifier.weight(1f), active = cur.state == Call.STATE_HOLDING) {
-                                if (preview) {
-                                    pvHold = !pvHold
-                                } else if (cur.canHold) {
-                                    cur.call?.let { CallHub.hold(it, cur.state != Call.STATE_HOLDING) }
-                                }
-                            }
-                            ActionTile(Ic.Add, "إضافة", Modifier.weight(1f)) { onAddCall() }
-                            if (cur.canMerge) {
-                                ActionTile(Ic.Merge, "دمج", Modifier.weight(1f)) {
-                                    others.firstOrNull()?.call?.let { cur.call?.conference(it) }
-                                }
-                            } else if (cur.canSwap) {
-                                ActionTile(Ic.Swap, "تبديل", Modifier.weight(1f)) { cur.call?.swapConference() }
-                            } else {
-                                Spacer(Modifier.weight(1f))
-                            }
-                        }
-                    }
-                    Spacer(Modifier.height(14.dp))
-                    WideButton(Ic.PhoneEnd, "إنهاء", cs.error, cs.onError, Modifier, 64.dp) { doHangup(cur) }
-                    Spacer(Modifier.height(8.dp))
-                }
-            }
-
-            if (!preview && !ended && cur.state == Call.STATE_SELECT_PHONE_ACCOUNT) {
-                AlertDialog(
-                    onDismissRequest = { doHangup(cur) },
-                    title = { Text("اتصل بأنهي شريحة؟", style = MaterialTheme.typography.titleLarge) },
-                    text = {
-                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Dialing.accounts(ctx).forEach { h ->
-                                BigButton(Dialing.label(ctx, h), icon = Ic.Phone, tonal = true) { cur.call?.phoneAccountSelected(h, false) }
-                            }
-                        }
-                    },
-                    confirmButton = {},
-                    dismissButton = { TextButton(onClick = { doHangup(cur) }) { Text("إلغاء") } }
-                )
-            }
-
-            if (quick && ringing) {
-                AlertDialog(
-                    onDismissRequest = { quick = false },
-                    title = { Text("رفض برسالة", style = MaterialTheme.typography.titleLarge) },
-                    text = {
-                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            listOf("مش فاضي دلوقتي، هكلمك بعدين.", "ممكن أكلمك بعدين؟", "أنا في اجتماع.").forEach { m ->
-                                BigButton(m, tonal = true) { quick = false; doReject(cur, m) }
-                            }
-                        }
-                    },
-                    confirmButton = {},
-                    dismissButton = { TextButton(onClick = { quick = false }) { Text("إلغاء") } }
-                )
+                Spacer(Modifier.height(34.dp))
+                CallCircle(Ic.PhoneEnd, null, EndRed, Color.White) { doHangup(cur) }
             }
         }
+    }
+
+    if (!preview && !ended && cur.state == Call.STATE_SELECT_PHONE_ACCOUNT) {
+        AlertDialog(
+            onDismissRequest = { doHangup(cur) },
+            containerColor = DialogBg, shape = RoundedCornerShape(14.dp),
+            title = { Text("اتصل بأنهي شريحة؟", style = MaterialTheme.typography.titleLarge) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Dialing.accounts(ctx).forEach { h ->
+                        BigButton(Dialing.label(ctx, h), icon = Ic.Phone, tonal = true) { cur.call?.phoneAccountSelected(h, false) }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = { TextButton(onClick = { doHangup(cur) }) { Text("إلغاء", style = MaterialTheme.typography.bodyLarge) } }
+        )
+    }
+
+    if (quick && ringing) {
+        AlertDialog(
+            onDismissRequest = { quick = false },
+            containerColor = DialogBg, shape = RoundedCornerShape(14.dp),
+            title = { Text("رفض برسالة", style = MaterialTheme.typography.titleLarge) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    listOf("مش فاضي دلوقتي، هكلمك بعدين.", "ممكن أكلمك بعدين؟", "أنا في اجتماع.").forEach { m ->
+                        BigButton(m, tonal = true) { quick = false; doReject(cur, m) }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = { TextButton(onClick = { quick = false }) { Text("إلغاء", style = MaterialTheme.typography.bodyLarge) } }
+        )
     }
 }

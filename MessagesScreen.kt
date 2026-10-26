@@ -1,5 +1,7 @@
 package com.mohamed.phone.ui
 
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -7,6 +9,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -63,15 +66,15 @@ fun MessagesScreen(bottom: Dp) {
     }
     val unread = all.sumOf { it.unread }
 
-    Box(Modifier.fillMaxSize().glow(cs.tertiaryContainer, 0.68f)) {
+    Box(Modifier.fillMaxSize()) {
         LazyColumn(
             Modifier.fillMaxSize().imePadding(),
-            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = bottom)
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = bottom)
         ) {
             item {
                 TabHeader("الرسائل", "الهاتف · ${all.size} محادثة" + if (unread > 0) " · $unread جديدة" else "") {
                     Box {
-                        CookieIcon(Ic.Menu, 40.dp, cs.tertiary, cs.onTertiary, desc = "القايمة", onClick = { menu = true })
+                        HeaderBtn(Ic.More, "القايمة") { menu = true }
                         DropdownMenu(menu, { menu = false }) {
                             MenuItem("رسالة جديدة", Ic.Add) { menu = false; nav.push(Overlay.NewMessage) }
                             MenuItem("تحديث", Ic.Clock) { menu = false; Repo.reloadAll() }
@@ -97,42 +100,40 @@ fun MessagesScreen(bottom: Dp) {
                 val name = Repo.nameFor(t.address) ?: t.address
                 val contact = Repo.lookup(t.address)
                 val unreadRow = t.unread > 0
-                Row(
-                    Modifier.fillMaxWidth().padding(vertical = 2.dp).clip(RoundedCornerShape(22.dp))
-                        .clickable { nav.push(Overlay.Conversation(t.threadId, t.address)) }.padding(6.dp),
-                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)
-                ) {
-                    Avatar(name, contact?.photo, 48.dp, seed = t.address)
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            name, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                            style = MaterialTheme.typography.titleSmall
-                        )
-                        Text(
-                            t.snippet, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = if (unreadRow) cs.onSurface else cs.onSurfaceVariant,
-                            fontWeight = if (unreadRow) FontWeight.Bold else FontWeight.Normal
-                        )
-                    }
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(
-                            Fmt.day(t.date), style = MaterialTheme.typography.labelMedium,
-                            color = if (unreadRow) cs.primary else cs.onSurfaceVariant
-                        )
-                        if (unreadRow) {
-                            Box(Modifier.size(22.dp).clip(CircleShape).background(cs.primary), contentAlignment = Alignment.Center) {
-                                Text(if (t.unread > 99) "99+" else t.unread.toString(), color = cs.onPrimary, style = MaterialTheme.typography.labelSmall)
+                Column(Modifier.fillMaxWidth()) {
+                    Row(
+                        Modifier.fillMaxWidth().clickable { nav.push(Overlay.Conversation(t.threadId, t.address)) }.padding(vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Box(Modifier.size(10.dp).clip(CircleShape).background(if (unreadRow) cs.primary else Color.Transparent))
+                        Avatar(name, contact?.photo, 48.dp, seed = t.address)
+                        Spacer(Modifier.size(2.dp))
+                        Column(Modifier.weight(1f)) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(
+                                    name, Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold, textDirection = TextDirection.Content)
+                                )
+                                Text(
+                                    Fmt.day(t.date), style = MaterialTheme.typography.bodySmall,
+                                    color = if (unreadRow) cs.primary else cs.onSurfaceVariant
+                                )
+                            }
+                            Text(
+                                t.snippet, maxLines = 2, overflow = TextOverflow.Ellipsis,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = if (unreadRow) cs.onSurface else cs.onSurfaceVariant
+                            )
+                        }
+                        Box {
+                            IconBtn(Ic.More, "المزيد") { rowMenu = t.threadId }
+                            DropdownMenu(rowMenu == t.threadId, { rowMenu = null }) {
+                                if (t.address.any { it.isDigit() }) MenuItem("اتصال", Ic.Phone) { rowMenu = null; call(t.address) }
+                                MenuItem("حذف المحادثة", Ic.Trash, danger = true) { rowMenu = null; deleting = t }
                             }
                         }
                     }
-                    Box {
-                        IconBtn(Ic.More, "المزيد") { rowMenu = t.threadId }
-                        DropdownMenu(rowMenu == t.threadId, { rowMenu = null }) {
-                            if (t.address.any { it.isDigit() }) MenuItem("اتصال", Ic.Phone) { rowMenu = null; call(t.address) }
-                            MenuItem("حذف المحادثة", Ic.Trash, danger = true) { rowMenu = null; deleting = t }
-                        }
-                    }
+                    RowDivider(start = 76.dp)
                 }
             }
         }
